@@ -1,0 +1,8 @@
+Flask
+funasr
+librosa
+torch
+torchaudio
+addict
+modelscope
+datasets
