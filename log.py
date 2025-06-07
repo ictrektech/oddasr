@@ -13,12 +13,16 @@ def _logging():
 
     log = logging.getLogger(path)
     th = handlers.TimedRotatingFileHandler(filename=path, when='MIDNIGHT', backupCount=10, encoding='utf-8')
+
     format = logging.Formatter(FORMAT, DATE)
-    stdout = logging.StreamHandler()
+
     th.setFormatter(format)
     log.addHandler(th)
-    stdout.setFormatter(format)
-    log.addHandler(stdout)
+
+    # stdout = logging.StreamHandler()
+    # stdout.setFormatter(format)
+    # log.addHandler(stdout)
+
     # if app.debug:
     #     enableProtoPrint = False
     #     if enableProtoPrint:

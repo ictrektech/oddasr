@@ -1,17 +1,23 @@
+import asyncio
 import werkzeug.utils
 import os
 from datetime import timedelta
 import odd_asr_exceptions
+import odd_asr_config as config
 import time
 from flask import Flask, request, jsonify
 
 from log import logger
-from odd_asr import OddAsr, OddAsrParamsStream, OddAsrParamsFile
+from odd_asr import OddAsrFile, OddAsrParamsFile
+from odd_asr_stream import OddAsrStream, OddAsrParamsStream
+
+odd_asr_params_file = OddAsrParamsFile()
+odd_asr_file = OddAsrFile(odd_asr_params_file)
 
 odd_asr_params_stream = OddAsrParamsStream()
-odd_asr_params_file = OddAsrParamsFile()
+odd_asr_stream = OddAsrStream(odd_asr_params_stream)
 
-odd_asr = OddAsr(odd_asr_params_file, odd_asr_params_stream)
+# odd_loop = EvLoop()
 
 # 注册蓝图
 def register_blueprints(new_app, path):
@@ -21,8 +27,6 @@ def register_blueprints(new_app, path):
     new_app.errorhandler(odd_asr_exceptions.CodeException)(odd_asr_exceptions.handler)
     return new_app
 
-# loop = EvLoop()
-# subsrv = SubscribeServer(loop , host = config.redis_host,port = config.redis_port , password = config.redis_password, disabled = False)
 app = Flask(__name__, static_url_path='')
 register_blueprints(app, 'router')
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -32,9 +36,13 @@ import router.asr_api
 
 # for uwsgi start directly
 
-if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-    logger.info('server has started!')
-    # loop.start()
-    # subsrv.start(config.ws_local_ip, config.ws_local_port)
+# if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+#     logger.info('server has started!')
+#     odd_loop.start()
+#     odd_wssrv.start(config.ws_local_ip, config.ws_local_port)
 
-# app.jinja_env.filters['datetime'] = format_datetime
+# logger.info('starting event loop !')
+# odd_loop.start()
+# logger.info('event loop has started!')
+# asyncio.run(odd_wssrv.start(config.ws_local_ip, config.ws_local_port))
+

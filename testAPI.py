@@ -1,35 +1,8 @@
 import requests
 
-
-def test_stream():
+def test_file(audio_path: str, output_format: str = "txt"):
     # 设置服务的 URL
     url = "http://127.0.0.1:12340/v1/asr"
-
-    # 准备音频文件路径
-    audio_path = "./test_cn_male_9s.wav"
-
-    # 定义 hotwords
-    hotwords = "小落 小落同学 奥德元 小奥"
-
-    # 发送 POST 请求
-    with open(audio_path, "rb") as audio_file:
-        response = requests.post(url, files={"audio": audio_file}, data={"hotwords": hotwords, "mode": "file"})
-
-    # 输出结果
-    if response.status_code == 200:
-        try:
-            print("Recognition Result:", response.json()["text"])
-        except ValueError:
-            print("Non-JSON response:", response.text)  # Print the raw response
-    else:
-        print("Error:", response.text)  # Print the raw error message
-
-
-def test_file(output_format: str = "txt"):
-    # 设置服务的 URL
-    url = "http://127.0.0.1:12340/v1/asr"
-    # 准备音频文件路径
-    audio_path = "./aketao.wav"
     # 定义 hotwords
     hotwords = "小落 小落同学 奥德元 小奥"
     # 打开音频文件
@@ -47,6 +20,25 @@ def test_file(output_format: str = "txt"):
 
 
 if __name__ == "__main__":
-    # test_file("txt")
-    test_file("spk")
-    # test_file("srt")
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description="Your WAV file need to recoginze to text.")
+    parser.add_argument("audio_path", type=str, help="file path of your input WAV.")
+    parser.add_argument("output_format", type=str, help="output format, support: txt, spk or srt.")
+    args = parser.parse_args()
+
+    # test command:  python testAPI VCS-20200916175424.wav spk
+    file = args.audio_path
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Full file path: {os.path.abspath(file)}")
+    if not os.path.exists(file):
+        print(f"File not found: {file}")
+        exit(1) 
+
+    fmt = args.output_format
+    if fmt not in ["txt", "spk", "srt"]:
+        print(f"output_format must be txt, spk or srt: {fmt}")
+        exit(1)
+
+    test_file(file, fmt)

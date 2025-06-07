@@ -123,6 +123,29 @@ def extract_timestamps(input_text):
     
     return times_list
 
+def convert_time_to_srt_format(self, time_in_milliseconds):
+    hours = time_in_milliseconds // 3600000
+    time_in_milliseconds %= 3600000
+    minutes = time_in_milliseconds // 60000
+    time_in_milliseconds %= 60000
+    seconds = time_in_milliseconds // 1000
+    time_in_milliseconds %= 1000
+
+    return f"{hours:02}:{minutes:02}:{seconds:02},{time_in_milliseconds:03}"
+
+def text_to_srt(self, idx, speaker_id, msg, start_microseconds, end_microseconds) -> str:
+    start_time = self.__convert_time_to_srt_format(start_microseconds)
+    end_time = self.__convert_time_to_srt_format(end_microseconds)
+
+    msg = f"发言人 {speaker_id}: {msg}"
+    srt = """%d %s --> %s %s """ % (
+        idx,
+        start_time,
+        end_time,
+        msg,
+    )
+    return srt
+
 
 if __name__ == '__main__':
     text = ("1. [00:00:00,500-00:00:05,850] 在我们的设计普惠当中，有一个我经常津津乐道的项目叫寻找远方的美好。"

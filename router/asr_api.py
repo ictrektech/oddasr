@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, session, send_file, jsoni
 
 # import app
 from log import logger
-from odd_asr_app import odd_asr
+from odd_asr_app import odd_asr_file
 
 ########################################
 ## main
@@ -18,14 +18,16 @@ def transcribe():
     """
     Receive an audio file from the client and return the transcribed text.
     """
+    return_ok = True
     try:
+
         # Get the uploaded audio file
         audio_file = request.files.get('audio')
         if not audio_file:
             return jsonify({"error": "Invalid parameter. audio param is required."}), 400
         
         # get mode from request if provided
-        mode = request.form.get('mode', "")  # mode should be a string like 'file', 'stream', 'pipeline'
+        mode = request.form.get('mode', "file")  # mode should be a string like 'file', 'stream', 'pipeline'
         output_format = request.form.get('output_format', "txt")  # output_format should be a string like 'txt', 'srt', 'spk'
         hotwords = request.form.get('hotwords', "")  # hotwords should be a string like 'word1 word2'
 
@@ -38,11 +40,10 @@ def transcribe():
         # recognition with hotwords
         match mode:
             case "file":
-                result = odd_asr.transcribe_file(temp_path, hotwords=hotwords, output_format=output_format)
-            case "stream":
-                result = odd_asr.transcribe_stream(temp_path, hotwords=hotwords, output_format=output_format)
+                result = odd_asr_file.transcribe_file(temp_path, hotwords=hotwords, output_format=output_format)
             case _:
-                result = odd_asr.transcribe_file(temp_path, hotwords=hotwords, output_format=output_format)
+                return_ok = False
+                result = f"unsupported mode: {mode}."
         
         logger.info(f"Recognized mode:{mode}, fmt={output_format}, result: {result}")
 
@@ -52,7 +53,10 @@ def transcribe():
         logger.info(f"Deleted temporary file: {temp_path}")
 
         # Return the recognition result
-        return jsonify({"text": result}), 200
+        if not return_ok:
+            return jsonify({"error": result}), 500
+        else:
+            return jsonify({"text": result}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

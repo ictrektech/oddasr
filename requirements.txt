@@ -6,3 +6,5 @@ torchaudio
 addict
 modelscope
 datasets
+websockets
+redis
