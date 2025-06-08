@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+""" 
+@author: catherine wei
+@contact: EMAIL@contact: catherine@oddmeta.com
+@software: PyCharm 
+@file: odd_wss_server.py 
+@info: 消息模版
+"""
+
 import logging
 from logging import handlers
 import platform
@@ -19,9 +28,9 @@ def _logging():
     th.setFormatter(format)
     log.addHandler(th)
 
-    # stdout = logging.StreamHandler()
-    # stdout.setFormatter(format)
-    # log.addHandler(stdout)
+    stdout = logging.StreamHandler()
+    stdout.setFormatter(format)
+    log.addHandler(stdout)
 
     # if app.debug:
     #     enableProtoPrint = False
@@ -34,7 +43,7 @@ def _logging():
     #         ch.setFormatter(format)
     #         log.addHandler(ch)
 
-    log.setLevel(logging.INFO)
+    log.setLevel(logging.DEBUG)
     return log
 
 

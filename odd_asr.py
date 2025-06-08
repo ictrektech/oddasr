@@ -1,12 +1,6 @@
 import torch
 import librosa
 import torchaudio
-import soundfile
-import numpy as np
-
-import queue
-import threading
-import time
 
 import os
 from funasr import AutoModel
@@ -23,19 +17,28 @@ class OddAsrParamsFile:
 
 
 class OddAsrFile:
+    """
+    语音识别类，用于语音识别文件
+    """
+    _fileParam: OddAsrParamsFile = None
+    _model: AutoModel = None
+    _device = None
     def __init__(self, fileParam:OddAsrParamsFile=None):
 
         if fileParam is None:
-            self.fileParam = OddAsrParamsFile()
+            self._fileParam = OddAsrParamsFile()
         else:
-            self.fileParam = fileParam
+            self._fileParam = fileParam
 
-        # auto detect GPU device
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        # auto detect GPU _device
+        self._device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+        # load model on init due to the model is large, and the model is not loaded on the first call
+        self.load_file_model(self._device)
 
     def load_file_model(self, device="cuda:0"):
         # load file model
-        self.model = AutoModel(
+        self._model = AutoModel(
             model="iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
             vad_model='iic/speech_fsmn_vad_zh-cn-16k-common-pytorch', vad_model_revision="v2.0.4",
             punc_model='iic/punc_ct-transformer_cn-en-common-vocab471067-large', punc_model_revision="v2.0.4",
@@ -71,16 +74,16 @@ class OddAsrFile:
 
             logger.info(f"Starting speech recognition with expected output_format={output_format}, hotwords: {hotwords}")
 
-            if self.model is None:
-                self.load_file_model()
+            if self._model is None:
+                self.load_file_model(self._device)
 
             # start speech recognition with hotwords
-            result = self.model.generate(
+            result = self._model.generate(
                 data, 
                 return_raw_text=True, 
                 is_final=True, 
                 sentence_timestamp=False,
-                hotword=hotwords  # Pass the hotwords as a string to the model
+                hotword=hotwords  # Pass the hotwords as a string to the _model
             )
 
             match output_format:
@@ -88,8 +91,10 @@ class OddAsrFile:
                     sentences = result[0]["sentence_info"]
                     subtitles = []
 
+                    logger.debug(f"sentence_info: {sentences}")
+
                     for idx, sentence in enumerate(sentences):
-                        sub = text_to_srt(idx, sentence['spk'], sentence['text'], sentence['start'], sentence['end'])
+                        sub = text_to_srt(idx=idx, speaker_id=sentence['spk'], msg=sentence['text'], start_microseconds=sentence['start'], end_microseconds=sentence['end'])
                         subtitles.append(sub)
 
                     return "\n".join(subtitles)

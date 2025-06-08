@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """ 
-@author: gaoyang 
+@author: catherine wei
+@contact: EMAIL@contact: catherine@oddmeta.com
 @software: PyCharm 
-@file: exceptions.py
-@time: 2021/12/1 14:55
-@info: 错误处理模块
+@file: result.py 
+@time: 2025/6/9 15:00
+@info: 消息模版
 """
 
 from flask import jsonify
