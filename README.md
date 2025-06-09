@@ -8,7 +8,7 @@ Here’s a draft for the `README.md` file based on your project:
 
 ![GitHub](https://img.shields.io/github/license/oddmeta/oddasr)
 
-A simplest ASR API server for FunASR based on Flask, supporting audio file transcription.
+A simplest ASR API server for FunASR based on Flask, supporting both audio file mode and streaming mode transcriptions.
 
 ## Introduction
 
