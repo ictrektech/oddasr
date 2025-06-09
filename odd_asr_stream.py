@@ -3,8 +3,7 @@
 @author: catherine wei
 @contact: EMAIL@contact: catherine@oddmeta.com
 @software: PyCharm 
-@file: result.py 
-@time: 2025/6/9 15:00
+@file: odd_asr_stream.py 
 @info: 消息模版
 """
 

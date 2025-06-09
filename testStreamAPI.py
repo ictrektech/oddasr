@@ -88,20 +88,18 @@ async def receive_messages(websocket):
             logger.error(f"Receive error: {e}")
             break
 
-async def send_messages(websocket):
+async def send_messages(websocket, file):
     global state
     offset = 0
     total_length = 0
     chunk_size = 9600*2
 
-    # 发送PCM数据
-    with open("test.pcm", "rb") as f:
+    with open(file, "rb") as f:
         data = f.read()
 
     total_length = len(data)
     logger.debug(f"total_length={total_length}")
 
-    # 循环发送消息给服务端
     while True:
         await asyncio.sleep(0.1)
         match state:
@@ -133,14 +131,29 @@ async def send_messages(websocket):
             case _:
                 continue
 
-async def hello():
-    async with connect("ws://localhost:8765/v1/asr") as websocket:
+async def hello(file):
+    async with connect("ws://localhost:12341/v1/asr") as websocket:
 
-        send_task = asyncio.create_task(send_messages(websocket))
+        send_task = asyncio.create_task(send_messages(websocket, file))
         receive_task = asyncio.create_task(receive_messages(websocket))
 
         # 等待接收任务完成
         await asyncio.gather(send_task, receive_task)
         
 if __name__ == "__main__":
-    asyncio.run(hello())
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description="Your WAV file need to recoginze to text.")
+    parser.add_argument("audio_path", type=str, help="file path of your input WAV.")
+    args = parser.parse_args()
+
+    # test command:  python testAPI VCS-20200916175424.wav spk
+    file = args.audio_path
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Full file path: {os.path.abspath(file)}")
+    if not os.path.exists(file):
+        print(f"File not found: {file}")
+        exit(1) 
+
+    asyncio.run(hello(file))

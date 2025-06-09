@@ -46,11 +46,11 @@ python main_server.py
 
 The server will start on `http://127.0.0.1:12340`.
 
-### 2. Test the REST API
+### 2. Test file ASR API
 
 Use the `testAPI.py` script to test the API:
 ```bash
-python testAPI.py
+python testAPI.py test_en_steve_jobs_10s.wav txt
 ```
 
 Example `curl` command:
@@ -74,13 +74,12 @@ curl -X POST -F "audio=@test_cn_male_9s.wav" http://127.0.0.1:12340/v1/asr
 curl -X POST -F "audio=@test_en_steve_jobs_10s.wav" http://127.0.0.1:12340/v1/asr
 ```
 
-### 3. Local Transcription Example
+### 3. Test stream ASR API
+Use the `testStreamAPI.py` script to test the API:
 
-Run the local transcription example:
 ```bash
-python main_local.py
+python testStreamAPI.py 111.pcm
 ```
-
 
 ### 4. Example output
 - text mode
@@ -145,14 +144,16 @@ python main_local.py
 - **`odd_asr_config.py`**: Custom configurations for the project.
 - **`odd_asr_exception.py`**: Custom exception classes for the project.
 - **`odd_asr_result.py`**: Result classes for the project.
-- **`odd_asr.py`**: Main class for the project.
+- **`odd_asr.py`**: File ASR class for the project.
+- **`odd_asr_stream.py`**: Stream ASR class for the project.
+- **`odd_wss_server.py`**: Websocket server class for streaming ASR.
 - **`utils_speech.py`**: Utility functions used by the REST API which was origined from FunASR repo.
 - **`log.py`**: Logging configuration for the project.
 - **`router/asr_api.py`**: Defines the API endpoints for the REST API.
 
 ### Testing and Examples
-- **`testAPI.py`**: Example client script to test the REST API functionality.
-- **`testLocal.py`**: Example of using `SoundToTextLocal` for local transcription.
+- **`testAPI.py`**: Example client script to test the file mode of ASR API.
+- **`testStreamAPI.py`**: Example client script to test the streaming mode of ASR API.
 
 ### Audio Files
 - **`test_cn_male9s.wav`**: Example audio file for testing.
@@ -174,11 +175,7 @@ python main_local.py
    - Built using Flask.
    - Example usage: `python main_server.py`.
 
-2. **Local Python Reference**:
-   - `main_local.py` demonstrates a standalone ASR transcription method without the need for REST APIs.
-   - Example usage: `python main_local.py`.
-
-3. **Docker Support**:
+2. **Docker Support**:
    - Includes Dockerfiles for both GPU and CPU deployment.
    - Simplifies deployment on servers with or without GPU support.
 

@@ -18,7 +18,6 @@ from odd_wss_server import start_wss_server
 
 if __name__ == '__main__':
 
-    # start websocket server
     def start_wss_in_thread():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -34,5 +33,5 @@ if __name__ == '__main__':
     logger.info("WebSocket server started.")
 
     # Start Flask server and listen for requests from any host
-    print(app.url_map)
+    # print(app.url_map)
     app.run(host=config.HOST, port=config.PORT, debug=config.Debug)

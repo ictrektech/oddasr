@@ -1,11 +1,16 @@
 HOST = "0.0.0.0"
 PORT = 12340
-Debug = False
 
-ws_local_ip = "127.0.0.1"
-ws_local_port = 12341
+WS_HOST = "127.0.0.1"
+WS_PORT = 12341
 concurrent_thread = 8
 
+Debug = False
+
+asr_stream_cfg= { 'max_instance':1 }
+asr_file_cfg= { 'max_instance':1 }
+
+redis_enabled = False
 redis_host = "127.0.0.1"
 redis_port = 7379
 redis_password = ""

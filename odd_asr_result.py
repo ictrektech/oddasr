@@ -8,7 +8,6 @@
 @info: 消息模版
 """
 
-import threading
 import queue
 import asyncio
 from log import logger

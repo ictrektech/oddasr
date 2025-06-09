@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+""" 
+@author: catherine wei
+@contact: EMAIL@contact: catherine@oddmeta.com
+@software: PyCharm 
+@file: odd_asr.py 
+@info: 消息模版
+"""
+
 import torch
 import librosa
 import torchaudio

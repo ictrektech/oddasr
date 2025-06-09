@@ -10,7 +10,7 @@
 """Server example using the asyncio API."""
 
 import asyncio
-from odd_asr_exceptions import EM_ERR_ASRMANAGER_SERVER_ERROR, mai_err_name, EM_ERR_ASRMANAGER_ARGS_ERROR
+from odd_asr_exceptions import mai_err_name, EM_ERR_ASR_ARGS_ERROR
 from websockets.asyncio.server import serve
 import json
 from odd_asr_exceptions import *
@@ -39,14 +39,12 @@ import queue
 
 from odd_asr_stream import OddAsrStream, OddAsrParamsStream
 from odd_asr_result import notifyTask
-
+import odd_asr_config as config
 from log import logger
 
 odd_asr_stream_set = set()
 odd_asr_stream_dict = dict()
 _wss_server = None
-
-_MAX_INSTANCE_NUM = 1
 
 def find_free_odd_asr_stream(websocket):
     '''
@@ -222,8 +220,8 @@ class OddWssServer:
             msg_type = ''
 
             res = TCMDCommonRes(msg_id, msg_type)
-            res.error_code = EM_ERR_ASRMANAGER_ARGS_ERROR
-            res.error_desc = mai_err_name(EM_ERR_ASRMANAGER_ARGS_ERROR)
+            res.error_code = EM_ERR_ASR_ARGS_ERROR
+            res.error_desc = mai_err_name(EM_ERR_ASR_ARGS_ERROR)
 
             return result, res, session_id
 
@@ -232,8 +230,8 @@ class OddWssServer:
             msg_id = req['msg_id'] if 'msg_id' in req else ''
             msg_type = req['msg_type'] if 'msg_type' in req else ''
             res = TCMDCommonRes(msg_id, msg_type)
-            res.error_code = EM_ERR_ASRMANAGER_ARGS_ERROR
-            res.error_desc = mai_err_name(EM_ERR_ASRMANAGER_ARGS_ERROR)
+            res.error_code = EM_ERR_ASR_ARGS_ERROR
+            res.error_desc = mai_err_name(EM_ERR_ASR_ARGS_ERROR)
 
             return result, res, session_id
 
@@ -253,8 +251,8 @@ class OddWssServer:
                 若session_id不存在，说明是一个非法请求
                 '''
                 res.session_id = ''
-                res.error_code = EM_ERR_ASRMANAGER_SESSION_ID_NOVALID
-                res.error_desc = mai_err_name(EM_ERR_ASRMANAGER_SESSION_ID_NOVALID)
+                res.error_code = EM_ERR_ASR_SESSION_ID_NOVALID
+                res.error_desc = mai_err_name(EM_ERR_ASR_SESSION_ID_NOVALID)
                 result = False
         else:
             '''
@@ -309,7 +307,11 @@ def init_instances(server: OddWssServer):
     :param server:
     :return:
     '''
-    for i in range(_MAX_INSTANCE_NUM):
+    max_instance = config.asr_stream_cfg["max_instance"]
+    if max_instance <= 0:
+        max_instance = 2
+
+    for i in range(max_instance):
         odd_asr_stream_param: OddAsrParamsStream = OddAsrParamsStream(
             mode="stream",
             hotwords="", 
@@ -335,7 +337,7 @@ async def start_wss_server():
     init_notify_task(_wss_server)
     init_instances(_wss_server)
 
-    async with serve(_wss_server.handle_client, "localhost", 8765):
+    async with serve(_wss_server.handle_client, config.WS_HOST, config.WS_PORT):
         await asyncio.Future()  # run forever    
 
 if __name__ == "__main__":

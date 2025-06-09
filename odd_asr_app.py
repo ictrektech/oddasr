@@ -1,10 +1,17 @@
-import asyncio
+# -*- coding: utf-8 -*-
+""" 
+@author: catherine wei
+@contact: EMAIL@contact: catherine@oddmeta.com
+@software: PyCharm 
+@file: odd_asr_app.py 
+@info: 消息模版
+"""
+
 import werkzeug.utils
 import os
 from datetime import timedelta
 import odd_asr_exceptions
 import odd_asr_config as config
-import time
 from flask import Flask, request, jsonify
 
 from log import logger
