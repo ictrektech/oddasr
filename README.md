@@ -44,6 +44,12 @@ To start the REST API server:
 python main_server.py
 ```
 
+default the server will start with file mode only, if you want to enable stream mode, you can add the `--enable_stream` argument:
+```bash
+python main_server.py --enable_stream
+```
+then the server will be started with both file mode and stream mode supported.
+
 The server will start on `http://127.0.0.1:12340`.
 
 ### 2. Test file ASR API

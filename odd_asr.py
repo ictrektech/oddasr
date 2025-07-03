@@ -40,16 +40,26 @@ class OddAsrFile:
             self._fileParam = fileParam
 
         # auto detect GPU _device
-        self._device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            self._device = "cuda:0"
+        elif torch.npu.is_available():
+            self._device = "npu:0"
+        else:
+            self._device = "cpu"
 
         # load model on init due to the model is large, and the model is not loaded on the first call
         self.load_file_model(self._device)
 
     def load_file_model(self, device="cuda:0"):
         # load file model
+
+        logger.info(f"Loading model with device={device}")
+
         self._model = AutoModel(
+            # model="iic/speech_paraformer_asr_nat-zh-cn-16k-aishell2-vocab5212-pytorch",
             model="iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
             vad_model='iic/speech_fsmn_vad_zh-cn-16k-common-pytorch', vad_model_revision="v2.0.4",
+            # punc_model='ct-punc',
             punc_model='iic/punc_ct-transformer_cn-en-common-vocab471067-large', punc_model_revision="v2.0.4",
             spk_model="cam++",
             # spk_model="iic/speech_campplus_sv_zh-cn_3dspeaker_16k",
@@ -60,7 +70,7 @@ class OddAsrFile:
         )
         logger.info("Model loaded successfully.")
 
-    def transcribe_file(self, audio_file, hotwords, output_format="txt"):
+    def transcribe_file(self, audio_file, hotwords="", output_format="txt"):
         try:
             # check audio file exists
             if not os.path.exists(audio_file):

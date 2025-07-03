@@ -40,7 +40,7 @@ def transcribe():
         # recognition with hotwords
         match mode:
             case "file":
-                result = odd_asr_file.transcribe_file(temp_path, hotwords=hotwords, output_format=output_format)
+                result = odd_asr_file.transcribe_file(audio_file=temp_path, hotwords=hotwords, output_format=output_format)
             case _:
                 return_ok = False
                 result = f"unsupported mode: {mode}."

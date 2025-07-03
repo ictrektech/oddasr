@@ -21,8 +21,14 @@ from odd_asr_stream import OddAsrStream, OddAsrParamsStream
 odd_asr_params_file = OddAsrParamsFile()
 odd_asr_file = OddAsrFile(odd_asr_params_file)
 
+def init_file_instance():
+    global odd_asr_file
+
 odd_asr_params_stream = OddAsrParamsStream()
 odd_asr_stream = OddAsrStream(odd_asr_params_stream)
+
+def init_stream_instance():
+    global odd_asr_stream
 
 # odd_loop = EvLoop()
 

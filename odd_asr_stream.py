@@ -94,7 +94,7 @@ class OddAsrStream:
         # auto detect GPU device
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        self.load_stream_model()
+        self.load_stream_model(self.device)
 
         self.lock = threading.Lock()  # 初始化锁
 

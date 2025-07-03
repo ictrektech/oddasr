@@ -8,3 +8,4 @@ modelscope
 datasets
 websockets
 redis
+werkzeug
