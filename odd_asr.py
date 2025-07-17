@@ -42,8 +42,8 @@ class OddAsrFile:
         # auto detect GPU _device
         if torch.cuda.is_available():
             self._device = "cuda:0"
-        elif torch.npu.is_available():
-            self._device = "npu:0"
+        # elif torch.npu.is_available():
+        #     self._device = "npu:0"
         else:
             self._device = "cpu"
 
