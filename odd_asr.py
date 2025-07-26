@@ -15,6 +15,7 @@ import os
 from funasr import AutoModel
 from utils_speech import convert_pcm_to_float, convert_time_to_millis, text_to_srt
 from log import logger
+import odd_asr_config as config
 
 class OddAsrParamsFile:
     def __init__(self, mode="file", hotwords="", return_raw_text=True, is_final=True, sentence_timestamp=False):
@@ -39,11 +40,14 @@ class OddAsrFile:
         else:
             self._fileParam = fileParam
 
-        # auto detect GPU _device
-        if torch.cuda.is_available():
-            self._device = "cuda:0"
-        # elif torch.npu.is_available():
-        #     self._device = "npu:0"
+        if config.enable_gpu:
+            # auto detect GPU _device
+            if torch.cuda.is_available():
+                self._device = "cuda:0"
+            # elif torch.npu.is_available():
+            #     self._device = "npu:0"
+            else:
+                self._device = "cpu"
         else:
             self._device = "cpu"
 

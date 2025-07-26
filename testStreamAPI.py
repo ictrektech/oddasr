@@ -148,12 +148,31 @@ if __name__ == "__main__":
     parser.add_argument("audio_path", type=str, help="file path of your input WAV.")
     args = parser.parse_args()
 
-    # test command:  python testAPI VCS-20200916175424.wav spk
     file = args.audio_path
     print(f"Current working directory: {os.getcwd()}")
     print(f"Full file path: {os.path.abspath(file)}")
+
     if not os.path.exists(file):
         print(f"File not found: {file}")
         exit(1) 
+
+    # detect current test file is wav file
+    if not file.endswith(".wav") and not file.endswith(".pcm"):
+        print(f"File format error: {file}. Please input wav or pcm file.")
+        exit(1)
+
+    # check file format, sample rate must be 16000, sample width must be 16bit, channels must be 1
+    if file.endswith(".wav"):
+        import soundfile as sf
+        with sf.SoundFile(file) as f:
+            if f.samplerate != 16000:
+                print(f"File sample rate error: {file}. Please input 16000 sample rate, while input {f.samplerate}")
+                exit(1)
+            if f.subtype != 'PCM_16':
+                print(f"File sample width error: {file}. Please input 16bit sample width, while input {f.subtype}")
+                exit(1)
+            if f.channels != 1:
+                print(f"File channels error: {file}. Please input 1 channel, while input {f.channels}")
+                exit(1)
 
     asyncio.run(hello(file))

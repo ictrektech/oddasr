@@ -19,6 +19,7 @@ import os
 from funasr import AutoModel
 from log import logger
 from odd_asr_result import enque_asr_result, OddAsrStreamResult
+import odd_asr_config as config
 
 class AudioFrame:
     def __init__(self, data, sr: int = 16000, channel=1, bit_depth=16, timestamp = 0):
@@ -92,7 +93,10 @@ class OddAsrStream:
             self.streamParam = streamParam
 
         # auto detect GPU device
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        if config.enable_gpu:
+            self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = "cpu"
 
         self.load_stream_model(self.device)
 
@@ -134,8 +138,8 @@ class OddAsrStream:
         self.stream_model = AutoModel(
             model="paraformer-zh-streaming", model_revision="v2.0.4",
             # vad_model='iic/speech_fsmn_vad_zh-cn-16k-common-pytorch', vad_model_revision="v2.0.4",
-            punc_model='iic/punc_ct-transformer_cn-en-common-vocab471067-large', punc_model_revision="v2.0.4",
-            spk_model="cam++",
+            # punc_model='iic/punc_ct-transformer_cn-en-common-vocab471067-large', punc_model_revision="v2.0.4",
+            # spk_model="cam++",
             log_level="error",
             hub="ms",  # hub：表示模型仓库，ms为选择modelscope下载，hf为选择huggingface下载。
             device=device,

@@ -3,13 +3,14 @@
 @author: catherine wei
 @contact: EMAIL@contact: catherine@oddmeta.com
 @software: PyCharm 
-@file: odd_wss_server.py 
+@file: odd_log.py 
 @info: 消息模版
 """
 
 import logging
 from logging import handlers
 import platform
+import odd_asr_config as config
 
 if platform.system() != "Windows":
     path = "/var/log/odd_asr.log"
@@ -28,20 +29,20 @@ def _logging():
     th.setFormatter(format)
     log.addHandler(th)
 
-    # stdout = logging.StreamHandler()
-    # stdout.setFormatter(format)
-    # log.addHandler(stdout)
+    stdout = logging.StreamHandler()
+    stdout.setFormatter(format)
+    log.addHandler(stdout)
 
-    # if app.debug:
-    #     enableProtoPrint = False
-    #     if enableProtoPrint:
-    #         logging.basicConfig(level=logging.DEBUG,
-    #                             format=FORMAT,
-    #                             datefmt=DATE)
-    #     else:
-    #         ch = logging.StreamHandler()
-    #         ch.setFormatter(format)
-    #         log.addHandler(ch)
+    if config.Debug:
+        enableProtoPrint = False
+        if enableProtoPrint:
+            logging.basicConfig(level=logging.DEBUG,
+                                format=FORMAT,
+                                datefmt=DATE)
+        else:
+            ch = logging.StreamHandler()
+            ch.setFormatter(format)
+            log.addHandler(ch)
 
     log.setLevel(logging.DEBUG)
     return log

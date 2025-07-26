@@ -1,11 +1,14 @@
 HOST = "0.0.0.0"
 PORT = 12340
 
-WS_HOST = "127.0.0.1"
+WS_HOST = "0.0.0.0" # "127.0.0.1"
 WS_PORT = 12341
 concurrent_thread = 8
+disable_stream = False
 
 Debug = False
+
+enable_gpu = False
 
 asr_stream_cfg= { 'max_instance':1 }
 asr_file_cfg= { 'max_instance':1 }

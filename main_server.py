@@ -19,9 +19,9 @@ import odd_asr_config as config
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Control whether to enable streaming ASR')
-    parser.add_argument('--enable_stream', action='store_true', help='Enable streaming ASR')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description='Control whether to enable streaming ASR')
+    # parser.add_argument('--disable_stream', action='store_true', help='Disable streaming ASR')
+    # args = parser.parse_args()
 
     def start_wss_in_thread():
         loop = asyncio.new_event_loop()
@@ -32,12 +32,15 @@ if __name__ == '__main__':
             loop.close()
 
     # start websocket server
-    if args.enable_stream:
+    # if not args.disable_stream:
+    if not config.disable_stream:
         init_stream_instance()
         wss_thread = threading.Thread(target=start_wss_in_thread)
         wss_thread.daemon = True  # 设置为守护线程，主线程退出时自动退出
         wss_thread.start()
         logger.info("WebSocket server started.")
+    else:
+        logger.info("WebSocket server disabled.")
 
     init_file_instance()
     # Start Flask server and listen for requests from any host
