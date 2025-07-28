@@ -30,11 +30,21 @@ class AudioFrame:
         self.bit_depth = 16  # 位深度
 
 class OddAsrParamsStream:
+    _mode: str = "stream"
+    _hotwords: str = "oddmeta xiaoluo"
+    _rec_file:str =""
+    _result_callback = None
+    _result_callback: bool = False
+    _is_final : bool = False
+    _sentence_timestamp: bool = False
+
+    _chunk_size:list = [0, 10, 5]
+    _encoder_chunk_look_back: int = 4
+    _decoder_chunk_look_back: int = 1
+
     _transcription_thread: threading.Thread = None
     _audio_queue: queue.Queue = None
     _stop_event: threading.Event = None
-    _rec_file:str =""
-    _result_callback = None
 
     _is_busy = False  # 初始化时设置为 False
     _websocket = None
@@ -52,31 +62,32 @@ class OddAsrParamsStream:
                  encoder_chunk_look_back=4, 
                  decoder_chunk_look_back=1,
                  ):
-        self.mode = mode  # mode should be a string like 'file','stream', 'pipeline'
-        self.hotwords = hotwords  # hotwords should be a string like 'word1 word2'
+        self._mode = mode  # mode should be a string like 'file','stream', 'pipeline'
+        self._hotwords = hotwords  # hotwords should be a string like 'word1 word2'
         self._rec_file = audio_rec_filename  # audio_rec_filename should be a string like 'audio.wav'
         self._result_callback = result_callback
 
-        self.return_raw_text=return_raw_text #return raw text or not, default is True, if False, return json format result, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]]}, 
-        self.is_final=is_final  #is_final=True, if False, return partial result, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]], is_final: False},
-        self.sentence_timestamp=sentence_timestamp  #sentence_timestamp=False, if True, return sentence timestamp, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]], is_final: False, sentence_timestamp: [[0, 2000]]},
+        self._return_raw_text=return_raw_text #return raw text or not, default is True, if False, return json format result, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]]}, 
+        self._is_final=is_final  #is_final=True, if False, return partial result, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]], is_final: False},
+        self._sentence_timestamp=sentence_timestamp  #sentence_timestamp=False, if True, return sentence timestamp, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]], is_final: False, sentence_timestamp: [[0, 2000]]},
 
-        self.chunk_size = [0, 10, 5] #[0, 10, 5] 600ms, [0, 8, 4] 480ms
-        self.chunk_size = chunk_size  #chunk_size[0] is the first chunk size, in ms, 0 means no chunking, -1 means adaptive chunking
-        self.encoder_chunk_look_back = encoder_chunk_look_back #number of chunks to lookback for encoder self-attention
-        self.decoder_chunk_look_back = decoder_chunk_look_back #number of encoder chunks to lookback for decoder cross-attention
+        self._chunk_size = [0, 10, 5] #[0, 10, 5] 600ms, [0, 8, 4] 480ms
+        self._chunk_size = chunk_size  #chunk_size[0] is the first chunk size, in ms, 0 means no chunking, -1 means adaptive chunking
+
+        self._encoder_chunk_look_back = encoder_chunk_look_back #number of chunks to lookback for encoder self-attention
+        self._decoder_chunk_look_back = decoder_chunk_look_back #number of encoder chunks to lookback for decoder cross-attention
 
         self._audio_queue = queue.Queue()
         self._stop_event = threading.Event()
 
         # check chunk_size is valid, chunk_size[0] is the first chunk size, in ms, 0 means no chunking, -1 means adaptive chunking, chunk_size[1] is the chunk size, in ms, chunk_size[2] is the overlap size, in ms
-        if len(self.chunk_size) != 3:
+        if len(self._chunk_size) != 3:
             raise ValueError("chunk_size should be a list of 3 elements, chunk_size[0] is the first chunk size, in ms, 0 means no chunking, -1 means adaptive chunking, chunk_size[1] is the chunk size, in ms, chunk_size[2] is the overlap size, in ms")
-        if self.chunk_size[0] < -1 or self.chunk_size[0] > 60000:
+        if self._chunk_size[0] < -1 or self._chunk_size[0] > 60000:
             raise ValueError("chunk_size[0] should be between -1 and 60000, in ms")
-        if self.chunk_size[1] < 0 or self.chunk_size[1] > 60000:
+        if self._chunk_size[1] < 0 or self._chunk_size[1] > 60000:
             raise ValueError("chunk_size[1] should be between 0 and 60000, in ms")
-        if self.chunk_size[2] < 0 or self.chunk_size[2] > 60000:
+        if self._chunk_size[2] < 0 or self._chunk_size[2] > 60000:
             raise ValueError("chunk_size[2] should be between 0 and 60000, in ms")
         
     def _default_callback(self, result):
@@ -146,7 +157,7 @@ class OddAsrStream:
             disable_update=True,
         )
 
-    def transcribe_stream(self, audio_frame, socket=None, session_id=""):
+    def transcribe_stream(self, audio_frame, socket, session_id):
         '''
         transcribe audio stream, support real-time transcription, 
         and return partial result, like: 
@@ -181,11 +192,15 @@ class OddAsrStream:
             # Create and start the transcription thread
             if self.streamParam._transcription_thread is None or not self.streamParam._transcription_thread.is_alive():
                 self.streamParam._stop_event.clear()  # 确保 _stop_event 未被设置
-                logger.info(f"start transcription_thread, websocket={socket}, session_id={session_id}")
                 # self.streamParam._transcription_thread = threading.Thread(target=self._transcribe_thread_wrapper, args=(self.streamParam,))
                 self.streamParam._transcription_thread = threading.Thread(target=self._transcribe_thread_wrapper)
                 self.streamParam._transcription_thread.daemon = True  # 设置为守护线程
+
+                logger.info(f"start transcription_thread, websocket={socket}, session_id={session_id}")
+
                 self.streamParam._transcription_thread.start()
+            else:
+                logger.error(f"transcription_thread is running, websocket={socket}, session_id={session_id}")
 
             # DONT terminite the thread, just add an empty audio_frame to queue, let the previous frames to be processed
             if audio_frame is None:  # Receive EOF signal
@@ -234,17 +249,17 @@ class OddAsrStream:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        chunk_size = [0, 10, 5] #[0, 10, 5] 600ms, [0, 8, 4] 480ms
-        encoder_chunk_look_back = 4 #number of chunks to lookback for encoder self-attention
-        decoder_chunk_look_back = 1 #number of encoder chunks to lookback for decoder cross-attention
+        # chunk_size = [0, 10, 5] #[0, 10, 5] 600ms, [0, 8, 4] 480ms
+        # encoder_chunk_look_back = 4 #number of chunks to lookback for encoder self-attention
+        # decoder_chunk_look_back = 1 #number of encoder chunks to lookback for decoder cross-attention
         is_final = False
         cache = {}
         hotwords = ""
 
         tasks = []  # 用于存储所有异步任务
 
-        if self.streamParam.hotwords is not None and self.streamParam.hotwords != "":
-            hotwords = self.streamParam.hotwords.split(" ")
+        if self.streamParam._hotwords is not None and self.streamParam._hotwords != "":
+            hotwords = self.streamParam._hotwords.split(" ")
 
         try:
             while not self.streamParam._stop_event.is_set():
@@ -267,7 +282,7 @@ class OddAsrStream:
                 
                 speech = frame.data
 
-                chunk_stride = chunk_size[1] * 960 # 600ms
+                chunk_stride = self.streamParam._chunk_size[1] * 960 # 600ms
                 total_chunk_num = int(len(speech)/chunk_stride)
                 logger.info(f"Processing frame, stride: {chunk_stride}, data={len(speech)}, total_chunk_num={total_chunk_num}, speech type={type(speech)}")
 
@@ -285,10 +300,10 @@ class OddAsrStream:
                                                             is_final=is_final, 
                                                             # return_raw_text=True,
                                                             # sentence_timestamp=True,
-                                                            # hotword=hotwords,
-                                                            chunk_size=chunk_size, 
-                                                            encoder_chunk_look_back=encoder_chunk_look_back, 
-                                                            decoder_chunk_look_back=decoder_chunk_look_back
+                                                            hotword=hotwords,
+                                                            chunk_size=self.streamParam._chunk_size, 
+                                                            encoder_chunk_look_back=self.streamParam._encoder_chunk_look_back, 
+                                                            decoder_chunk_look_back=self.streamParam._decoder_chunk_look_back
                                                             )
 
                         logger.info(f"res={text}, websocket={self.streamParam._websocket}")

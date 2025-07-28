@@ -16,15 +16,16 @@ from funasr import AutoModel
 from utils_speech import convert_pcm_to_float, convert_time_to_millis, text_to_srt
 from log import logger
 import odd_asr_config as config
+import threading
 
 class OddAsrParamsFile:
     def __init__(self, mode="file", hotwords="", return_raw_text=True, is_final=True, sentence_timestamp=False):
-        self.mode = mode  # mode should be a string like 'file','stream', 'pipeline'
-        self.hotwords = hotwords  # hotwords should be a string like 'word1 word2'
-        self.return_raw_text=return_raw_text #return raw text or not, default is True, if False, return json format result, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]]}, 
-        self.is_final=is_final  #is_final=True, if False, return partial result, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]], is_final: False},
-        self.sentence_timestamp=sentence_timestamp  #sentence_timestamp=False, if True, return sentence timestamp, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]], is_final: False, sentence_timestamp: [[0, 2000]]},
-
+        self._mode = mode  # mode should be a string like 'file','stream', 'pipeline'
+        self._hotwords = hotwords  # hotwords should be a string like 'word1 word2'
+        self._return_raw_text=return_raw_text #return raw text or not, default is True, if False, return json format result, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]]}, 
+        self._is_final=is_final  #is_final=True, if False, return partial result, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]], is_final: False},
+        self._sentence_timestamp=sentence_timestamp  #sentence_timestamp=False, if True, return sentence timestamp, like: {text: "hello world", timestamp: [[0, 1000], [1000, 2000]], is_final: False, sentence_timestamp: [[0, 2000]]},
+        self._is_busy=False
 
 class OddAsrFile:
     """
@@ -33,6 +34,7 @@ class OddAsrFile:
     _fileParam: OddAsrParamsFile = None
     _model: AutoModel = None
     _device = None
+
     def __init__(self, fileParam:OddAsrParamsFile=None):
 
         if fileParam is None:
@@ -53,6 +55,8 @@ class OddAsrFile:
 
         # load model on init due to the model is large, and the model is not loaded on the first call
         self.load_file_model(self._device)
+
+        self.lock = threading.Lock()  # mutex lock for _is_busy
 
     def load_file_model(self, device="cuda:0"):
         # load file model
@@ -75,10 +79,12 @@ class OddAsrFile:
         logger.info("Model loaded successfully.")
 
     def transcribe_file(self, audio_file, hotwords="", output_format="txt"):
+        self.set_busy(True)
         try:
             # check audio file exists
             if not os.path.exists(audio_file):
                 logger.error(f"Audio file not found: {audio_file}")
+                self.set_busy(False)
                 raise FileNotFoundError(f"Audio file not found: {audio_file}")
 
             # load audio file
@@ -109,6 +115,8 @@ class OddAsrFile:
                 hotword=hotwords  # Pass the hotwords as a string to the _model
             )
 
+            output_text = ""
+
             match output_format:
                 case "srt":
                     sentences = result[0]["sentence_info"]
@@ -120,7 +128,7 @@ class OddAsrFile:
                         sub = text_to_srt(idx=idx, speaker_id=sentence['spk'], msg=sentence['text'], start_microseconds=sentence['start'], end_microseconds=sentence['end'])
                         subtitles.append(sub)
 
-                    return "\n".join(subtitles)
+                    output_text = "\n".join(subtitles)
                 case "spk":
                     sentences = result[0]["sentence_info"]
                     subtitles = []
@@ -129,11 +137,24 @@ class OddAsrFile:
                         sub = f"发言人 {sentence['spk']}: {sentence['text']}"
                         subtitles.append(sub)
 
-                    return "\n".join(subtitles)
+                    output_text = "\n".join(subtitles)
                 case "txt":
-                    return result[0]["text"]
+                    output_text = result[0]["text"]
                 case _:
-                    return result[0]["text"]
+                    output_text = result[0]["text"]
+            self.set_busy(False)
+            return output_text
 
         except Exception as e:
+            self.set_busy(False)
             raise RuntimeError(f"Error processing audio file: {e}")
+
+    def set_busy(self, is_busy):
+        with self.lock:  # 使用锁保护共享资源
+            self._fileParam._is_busy = is_busy
+            if not is_busy:
+                logger.info(f"set_busy to False, done")
+
+    def is_busy(self):
+        with self.lock:  # 使用锁保护共享资源
+            return self._fileParam._is_busy

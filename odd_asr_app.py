@@ -16,23 +16,32 @@ from flask import Flask, request, jsonify
 
 from log import logger
 from odd_asr import OddAsrFile, OddAsrParamsFile
-from odd_asr_stream import OddAsrStream, OddAsrParamsStream
 
 odd_asr_params_file = OddAsrParamsFile()
-odd_asr_file = OddAsrFile(odd_asr_params_file)
+odd_asr_file_set = set()
 
-def init_file_instance():
-    global odd_asr_file
+def init_instance_file():
+    global odd_asr_file_set
+    for i in range(config.asr_file_cfg["max_instance"]):
+        odd_asr_file = OddAsrFile(odd_asr_params_file)
+        odd_asr_file_set.add(odd_asr_file)
 
-odd_asr_params_stream = OddAsrParamsStream()
-odd_asr_stream = OddAsrStream(odd_asr_params_stream)
-
-def init_stream_instance():
-    global odd_asr_stream
+def find_free_odd_asr_file():
+    '''
+    find a free odd_asr_file
+    :param :
+    :return:
+    '''
+    global odd_asr_file_set
+    for odd_asr_file in odd_asr_file_set:
+        if not odd_asr_file.is_busy():
+            return odd_asr_file
+        
+    return None
 
 # odd_loop = EvLoop()
 
-# 注册蓝图
+# register blueprints
 def register_blueprints(new_app, path):
     for name in werkzeug.utils.find_modules(path):
         m = werkzeug.utils.import_string(name)

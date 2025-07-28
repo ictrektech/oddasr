@@ -179,10 +179,12 @@ If your test input is a wav file, `testStreamAPI.py` will check sample rate and 
 - **`test_cn_16k-16bits-mono.wav`**: Example audio file for streaming ASR testing.
 
 ### 4. Deployment Files
+
 - **`Dockerfile`**: Dockerfile for building GPU-accelerated Docker images (NVIDIA GPU deployment).
 - **`Dockerfile_CPU`**: Dockerfile for building Docker images for simple CPU-based deployments.
 
 ### 5. Additional Files
+
 - **`requirements.txt`**: Python dependencies required for the project.
 
 ---
@@ -190,13 +192,15 @@ If your test input is a wav file, `testStreamAPI.py` will check sample rate and 
 ## Features
 
 ### 1. REST API for ASR
-   - `main_server.py`Provides a REST API endpoint for audio file transcription.
-   - Built using Flask.
-   - Example usage: `python main_server.py`.
+
+- `main_server.py`Provides a REST API endpoint for audio file transcription.
+- Built using Flask.
+- Example usage: `python main_server.py`.
 
 ### 2. Docker Support
-   - Includes Dockerfiles for both GPU and CPU deployment.
-   - Simplifies deployment on servers with or without GPU support.
+
+- Includes Dockerfiles for both GPU and CPU deployment.
+- Simplifies deployment on servers with or without GPU support.
 
 *BTW: I don't have a GPU to run test for GPU deployment, help wanted!*
 
@@ -205,31 +209,34 @@ If your test input is a wav file, `testStreamAPI.py` will check sample rate and 
 ## Docker Deployment
 
 ### 1. Install Docker
-     ```bash
-     sudo apt-get update
-     sudo apt-get install -y docker.io
-     ```
-     Visit https://docs.oddmeta.net/#/engine-api/install_docker_on_ubuntu or https://docs.docker.com/engine/install/ubuntu/ for more details.
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker.io
+```
+
+Visit https://docs.oddmeta.net/#/engine-api/install_docker_on_ubuntu or https://docs.docker.com/engine/install/ubuntu/ for more details.
 
 ### 2. CPU Deployment
-     ```bash
-     docker build -t oddasr-cpu:v0.1.0 .
-     docker run -d -p 12340:12340 -p 12341:12341 --name oddasr-cpu oddasr-cpu:v0.1.0
-     ```
+
+```bash
+docker build -t oddasr-cpu:v0.1.0 .
+docker run -d -p 12340:12340 -p 12341:12341 --name oddasr-cpu oddasr-cpu:v0.1.0
+```
 
 ### 3. GPU Deployment
-     ```bash
-     docker build -f Dockerfile_GPU -t oddasr-gpu:v0.1.0 .
-     docker run -d -p 12340:12340 -p 12341:12341 --name oddasr-gpu oddasr-gpu:v0.1.0
-     ```
 
+```bash
+docker build -f Dockerfile_GPU -t oddasr-gpu:v0.1.0 .
+docker run -d -p 12340:12340 -p 12341:12341 --name oddasr-gpu oddasr-gpu:v0.1.0
+```
 
 ### 4. About running oddasr container
 
-     In the first run of oddasr container, it will download the model files from the internet, this would take quite sometime, from 10 minutes to more, depends on the bandwith of your internet.
-     Even not for the first run, oddasr server still need a few minutes to startup, because we will load the model on startup to speed up the incoming ASR requests.
+In the first run of oddasr container, it will download the model files from the internet, this would take quite sometime, from 10 minutes to more, depends on the bandwith of your internet.
+Even not for the first run, oddasr server still need a few minutes to startup, because we will load the model on startup to speed up the incoming ASR requests.
 
-     You can use `docker logs -t oddasr` to check the download progress. If you find logs like below, it means oddasr has already download the model files, running and working.
+You can use `docker logs -t oddasr` to check the download progress. If you find logs like below, it means oddasr has already download the model files, running and working.
 
 ```
 2025-07-25T08:22:08.090277794Z 2025-07-25 08:22:08 INFO odd_asr_result.py:95 (1-124264901494464) - => Start ASR result dispatch Task Success 
@@ -256,7 +263,6 @@ If your test input is a wav file, `testStreamAPI.py` will check sample rate and 
 - [ ] Add more models and features.
 - [ ] Support realtime ASR.
 - [ ] Add more customized options.
-   - [ ] --mode: file表示离线文件转写, stream表示实时转写
    - [ ] --output_format: txt表示纯文本, spk表示根据VAD分段后每个段落前面加发言人，srt表示在spk基础上为每个段落加一个段落在音频文件中的时间位置
    - [ ] --hotword 热词文件，每行一个热词，格式(热词 权重)：阿里巴巴 20
 - [ ] Simple UI for oddasr to demostrate.
@@ -271,7 +277,7 @@ If your test input is a wav file, `testStreamAPI.py` will check sample rate and 
 
 ## Limitations
 
-- Only supports **non-realtime** ASR transcription.
+- ~~Only supports **non-realtime** ASR transcription.~~
 - Only supports **audio files** as input.
 
 ---

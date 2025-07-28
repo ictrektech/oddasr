@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, session, send_file, jsoni
 
 # import app
 from log import logger
-from odd_asr_app import odd_asr_file
+from odd_asr_app import find_free_odd_asr_file
 
 ########################################
 ## main
@@ -36,6 +36,13 @@ def transcribe():
         audio_file.save(temp_path)
 
         logger.info(f"Received audio and saved to: {temp_path}")
+
+        # find a odd_asr_file instance
+        odd_asr_file = find_free_odd_asr_file()
+        
+        if not odd_asr_file:
+            return_ok = False
+            result = "no available asr instance."
 
         # recognition with hotwords
         match mode:

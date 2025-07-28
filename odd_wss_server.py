@@ -43,22 +43,33 @@ import odd_asr_config as config
 from log import logger
 
 odd_asr_stream_set = set()
-odd_asr_stream_dict = dict()
+# odd_asr_stream_dict = dict()
 _wss_server = None
 
-def find_free_odd_asr_stream(websocket):
+def find_free_odd_asr_stream(websocket, session_id):
     '''
     找到一个空闲的odd_asr_stream
     :param websocket:
     :return:
     '''
     for odd_asr_stream in odd_asr_stream_set:
-        if odd_asr_stream.get_websocket() != websocket:
-            return odd_asr_stream
-        
         if not odd_asr_stream.is_busy():
             odd_asr_stream.set_busy(True)
+            odd_asr_stream.set_session_id(session_id)
             odd_asr_stream.set_websocket(websocket)
+
+            return odd_asr_stream
+        
+    return None
+
+def find_odd_asr_stream_by_websocket(websocket):
+    '''
+    找到websocket对应的odd_asr_stream
+    :param websocket:
+    :return:
+    '''
+    for odd_asr_stream in odd_asr_stream_set:
+        if odd_asr_stream.get_websocket() == websocket:
             return odd_asr_stream
         
     return None
@@ -66,7 +77,7 @@ def find_free_odd_asr_stream(websocket):
 def find_odd_asr_stream_by_session_id(session_id):
     '''
     找到一个已存在的odd_asr_stream
-    :param websocket:
+    :param session_id:
     :return:
     '''
     for odd_asr_stream in odd_asr_stream_set:
@@ -116,15 +127,13 @@ class OddWssServer:
                     # find a odd_asr_stream
                     odd_asr_stream:OddAsrStream = find_odd_asr_stream_by_session_id(session_id=session_id)
                     if odd_asr_stream is None:
-                        odd_asr_stream = find_free_odd_asr_stream(websocket)
+                        odd_asr_stream = find_free_odd_asr_stream(websocket, session_id)
                         if odd_asr_stream is None:
-                            logger.debug(f"no free odd_asr_stream, close client={websocket}")
+                            logger.error(f"no free odd_asr_stream, close client={websocket}")
                             await websocket.close()
                             return
                         else:
                             logger.debug(f"found free odd_asr_stream, session_id={session_id}")
-                            odd_asr_stream.set_session_id(session_id)
-                            odd_asr_stream.set_websocket(websocket)
                             self._sessionid_set.add(session_id)
                     else:
                         logger.debug(f"found existing odd_asr_stream, session_id={session_id}, websocket={odd_asr_stream.get_websocket()}:{websocket}")
@@ -168,7 +177,7 @@ class OddWssServer:
             await client.send(message)
 
     def onRecv(self, websocket, pcm_data):
-        # print(f"Received message: {len(pcm_data)}, odd_asr_stream={odd_asr_stream}")
+        logger.debug(f"onRecv: {len(pcm_data)}, websocket={websocket}")
 
         # Convert bytes to a NumPy array of int16
         pcm_array = np.frombuffer(pcm_data, dtype=np.int16)
@@ -176,10 +185,15 @@ class OddWssServer:
         speech = pcm_array.astype(np.float32) / 32768.0
 
         # 找到对应的odd_asr_stream
-        session_id = self._conn_sessionid[websocket]
-        odd_asr_stream: OddAsrStream = find_odd_asr_stream_by_session_id(session_id=session_id)
+        session_id = ""
+        # session_id = self._conn_sessionid[websocket]
+        odd_asr_stream: OddAsrStream = find_odd_asr_stream_by_websocket(websocket=websocket)
         if odd_asr_stream:
-            odd_asr_stream.transcribe_stream(speech, websocket)
+            session_id = odd_asr_stream.get_session_id()
+            logger.debug(f"find_odd_asr_stream_by_websocket, session_id={session_id}")
+            odd_asr_stream.transcribe_stream(speech, socket=websocket, session_id=session_id)
+        else:
+            logger.error(f"find_odd_asr_stream_by_websocket, not found, websocket={websocket}")
 
     def onClose(self, websocket):
         logger.warn(f"Client disconnected: {websocket}")
@@ -215,7 +229,7 @@ class OddWssServer:
         try:
             req = json.loads(message)
         except Exception as e:
-            print(f"Received message: {message}")
+            logger.error(f"Invalid json format. Received message: {message}. webocket={websocket}")
             msg_id = ''
             msg_type = ''
 
@@ -227,6 +241,7 @@ class OddWssServer:
 
         # 若第一个消息不是MSG_APPLY_ASR_REQ，则关闭连接
         if req['msg_type'] != 'MSG_APPLY_ASR_REQ':
+            logger.error(f"Invalid msg_type. Received message: {message}, req['msg_type']")
             msg_id = req['msg_id'] if 'msg_id' in req else ''
             msg_type = req['msg_type'] if 'msg_type' in req else ''
             res = TCMDCommonRes(msg_id, msg_type)
@@ -250,6 +265,7 @@ class OddWssServer:
                 '''
                 若session_id不存在，说明是一个非法请求
                 '''
+                logger.error(f"Received message: {message}, req['session_id']={req['session_id']}")
                 res.session_id = ''
                 res.error_code = EM_ERR_ASR_SESSION_ID_NOVALID
                 res.error_desc = mai_err_name(EM_ERR_ASR_SESSION_ID_NOVALID)
@@ -293,11 +309,11 @@ async def notify_task(_wss_server=None):
             continue
 
 
-def init_instances(server: OddWssServer):
+def init_instances_stream(server: OddWssServer):
     '''
     初始化odd_asr_stream实例。
     由于初始化加载模型比较耗时，所以在启动的时候就预加载。
-    电脑内存太小，这里只初始化2个实例。
+    电脑内存太小，默认这里只初始化2个实例。
     每个odd_asr_stream实例对应一个websocket连接。
     每个websocket连接对应一个odd_asr_stream实例。
     每个odd_asr_stream实例对应一个session_id。
@@ -335,7 +351,7 @@ async def start_wss_server():
     _wss_server = OddWssServer()
 
     init_notify_task(_wss_server)
-    init_instances(_wss_server)
+    init_instances_stream(_wss_server)
 
     async with serve(_wss_server.handle_client, config.WS_HOST, config.WS_PORT):
         await asyncio.Future()  # run forever    

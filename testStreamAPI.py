@@ -45,19 +45,35 @@ class odd_asr_state(enum.Enum):
     EM_ASR_STATE_APPLY_FAILED = 3,
     EM_ASR_STATE_RECOGNIZING = 4,
 
-state: odd_asr_state = odd_asr_state.EM_ASR_STATE_IDLE
+# state: odd_asr_state = odd_asr_state.EM_ASR_STATE_IDLE
+
+class OddWsClient:
+    def __init__(self, uri):
+        self.uri = uri
+        self.websocket = None
+        self.state = odd_asr_state.EM_ASR_STATE_IDLE
+
+ws_client_set = set()
+
 
 async def receive_messages(websocket):
-    global state
-    """
-    异步接收服务端消息的函数
-    :param websocket: WebSocket 连接对象
-    """
+    '''
+    receive message from server
+    :param websocket: WebSocket connection object
+    '''
+
     while True:
         try:
             # 接收服务端消息
             message = await websocket.recv()
-            match state:
+            logger.debug(f"<<< {message}")
+
+            odd_ws_client: OddWsClient = None
+            for client in ws_client_set:
+                if client.websocket == websocket:
+                    odd_ws_client = client
+
+            match odd_ws_client.state:
                 case odd_asr_state.EM_ASR_STATE_IDLE:
                     continue
                 case odd_asr_state.EM_ASR_STATE_APPLYING:
@@ -65,11 +81,11 @@ async def receive_messages(websocket):
                     logger.debug(f"<<< {res}")
                     if res["msg_type"] == "MSG_APPLY_ASR_RES":
                         if res["error_code"] == 0:
-                            state = odd_asr_state.EM_ASR_STATE_APLLY_OK
+                            odd_ws_client.state = odd_asr_state.EM_ASR_STATE_APLLY_OK
                             logger.info("client doInit ok")
-                            state = odd_asr_state.EM_ASR_STATE_RECOGNIZING
+                            odd_ws_client.state = odd_asr_state.EM_ASR_STATE_RECOGNIZING
                         else:
-                            state = odd_asr_state.EM_ASR_STATE_APPLY_FAILED
+                            odd_ws_client.state = odd_asr_state.EM_ASR_STATE_APPLY_FAILED
                     continue
                 case odd_asr_state.EM_ASR_STATE_APLLY_OK:
                     continue
@@ -89,10 +105,14 @@ async def receive_messages(websocket):
             break
 
 async def send_messages(websocket, file):
-    global state
     offset = 0
     total_length = 0
     chunk_size = 9600*2
+
+    odd_ws_client: OddWsClient = None
+    for client in ws_client_set:
+        if client.websocket == websocket:
+            odd_ws_client = client
 
     with open(file, "rb") as f:
         data = f.read()
@@ -102,14 +122,14 @@ async def send_messages(websocket, file):
 
     while True:
         await asyncio.sleep(0.1)
-        match state:
+        match odd_ws_client.state:
             case odd_asr_state.EM_ASR_STATE_IDLE:
                 req = {"msg_type": "MSG_APPLY_ASR_REQ", "msg_id": "", "token": "", "session_id": ""}
                 logger.debug(f">>>client doInit req: {req}")
 
                 await websocket.send(json.dumps(req))
                 logger.debug(">>>client doInit req sent")
-                state = odd_asr_state.EM_ASR_STATE_APPLYING
+                odd_ws_client.state = odd_asr_state.EM_ASR_STATE_APPLYING
                 continue
             case odd_asr_state.EM_ASR_STATE_APPLYING:
                 continue
@@ -131,9 +151,12 @@ async def send_messages(websocket, file):
             case _:
                 continue
 
-async def hello(file):
-    async with connect("ws://localhost:12341/v1/asr") as websocket:
+async def hello(server_url, file):
+    client = OddWsClient(server_url)
+    ws_client_set.add(client)
 
+    async with connect(server_url) as websocket:
+        client.websocket = websocket
         send_task = asyncio.create_task(send_messages(websocket, file))
         receive_task = asyncio.create_task(receive_messages(websocket))
 
@@ -144,11 +167,18 @@ if __name__ == "__main__":
     import argparse
     import os
 
-    parser = argparse.ArgumentParser(description="Your WAV file need to recoginze to text.")
+    parser = argparse.ArgumentParser(description="Your WAV file need to recognize to text.")
     parser.add_argument("audio_path", type=str, help="file path of your input WAV.")
+    # Add server address parameter, allow it to be empty, set default value to None
+    parser.add_argument("--server_url", type=str, default=None, help="Server WebSocket URL")
+    # Add concurrent connection number parameter, allow it to be empty, set default value to None
+    parser.add_argument("--concurrency", type=int, default=None, help="Number of concurrent connections")
     args = parser.parse_args()
 
     file = args.audio_path
+    server_url = args.server_url if args.server_url is not None else "ws://127.0.0.1:12346/v1/asr"
+    concurrency = args.concurrency if args.concurrency is not None else 1
+
     print(f"Current working directory: {os.getcwd()}")
     print(f"Full file path: {os.path.abspath(file)}")
 
@@ -175,4 +205,8 @@ if __name__ == "__main__":
                 print(f"File channels error: {file}. Please input 1 channel, while input {f.channels}")
                 exit(1)
 
-    asyncio.run(hello(file))
+    async def run_concurrent_tests():
+        tasks = [hello(server_url, file) for _ in range(concurrency)]
+        await asyncio.gather(*tasks)
+
+    asyncio.run(run_concurrent_tests())
