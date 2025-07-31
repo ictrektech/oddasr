@@ -12,10 +12,6 @@ from logging import handlers
 import platform
 import odd_asr_config as config
 
-if platform.system() != "Windows":
-    path = "/var/log/odd_asr.log"
-else:
-    path = "./odd_asr.log"
 
 def _logging():
     FORMAT = "%(asctime)s %(levelname)s %(filename)s:%(lineno)s (%(process)s-%(thread)s) - %(message)s "
@@ -23,9 +19,9 @@ def _logging():
 
     format = logging.Formatter(FORMAT, DATE)
 
-    log = logging.getLogger(path)
+    log = logging.getLogger(config.log_path + config.log_file)
 
-    th = handlers.TimedRotatingFileHandler(filename=path, when='MIDNIGHT', backupCount=10, encoding='utf-8')
+    th = handlers.TimedRotatingFileHandler(filename=config.log_path, when='MIDNIGHT', backupCount=10, encoding='utf-8')
     th.setFormatter(format)
     log.addHandler(th)
 

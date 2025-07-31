@@ -37,6 +37,7 @@ import enum
 
 from websockets.asyncio.client import connect
 from log import logger
+import odd_asr_config as config
 
 class odd_asr_state(enum.Enum):
     EM_ASR_STATE_IDLE = 0,
@@ -52,6 +53,11 @@ class OddWsClient:
         self.uri = uri
         self.websocket = None
         self.state = odd_asr_state.EM_ASR_STATE_IDLE
+        self.timestamp_apply = 0
+        self.timestamp_first_packet = 0
+        self.timestamp_first_text = 0
+        self.timestamp_last_packet = 0
+        self.timestamp_last_text = 0
 
 ws_client_set = set()
 
@@ -86,6 +92,7 @@ async def receive_messages(websocket):
                             odd_ws_client.state = odd_asr_state.EM_ASR_STATE_RECOGNIZING
                         else:
                             odd_ws_client.state = odd_asr_state.EM_ASR_STATE_APPLY_FAILED
+                    odd_ws_client.timestamp_apply = time.time()
                     continue
                 case odd_asr_state.EM_ASR_STATE_APLLY_OK:
                     continue
@@ -128,7 +135,7 @@ async def send_messages(websocket, file):
                 logger.debug(f">>>client doInit req: {req}")
 
                 await websocket.send(json.dumps(req))
-                logger.debug(">>>client doInit req sent")
+                logger.debug(">>>client doInit req sent, timestamp_apply={odd_ws_client.timestamp_apply}")
                 odd_ws_client.state = odd_asr_state.EM_ASR_STATE_APPLYING
                 continue
             case odd_asr_state.EM_ASR_STATE_APPLYING:
@@ -138,9 +145,16 @@ async def send_messages(websocket, file):
             case odd_asr_state.EM_ASR_STATE_APPLY_FAILED:
                 continue
             case odd_asr_state.EM_ASR_STATE_RECOGNIZING:
+
                 chunk = data[offset:offset + chunk_size]
                 await websocket.send(chunk)
-                logger.debug(f"send chunk {offset}")
+
+                if odd_ws_client.timestamp_first_packet == 0:
+                    odd_ws_client.timestamp_first_packet = time.time()
+                    logger.debug(f"send chunk {offset}, odd_ws_client.timestamp_first_packet={odd_ws_client.timestamp_first_packet}")
+                else:
+                    logger.debug(f"send chunk {offset}")
+
                 offset += chunk_size
 
                 if offset >= total_length:
@@ -176,7 +190,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     file = args.audio_path
-    server_url = args.server_url if args.server_url is not None else "ws://127.0.0.1:12346/v1/asr"
+    default_server_url = "ws://"+ config.WS_HOST +":"+ str(config.WS_PORT) +"/v1/asr"
+    
+    server_url = args.server_url if args.server_url is not None else default_server_url
     concurrency = args.concurrency if args.concurrency is not None else 1
 
     print(f"Current working directory: {os.getcwd()}")

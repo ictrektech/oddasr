@@ -61,7 +61,13 @@ If the memory usage of your running environment is critical, you can disable str
 
 The file ASR server will start on `http://127.0.0.1:12340`, and the stream ASR server will start on `http://127.0.0.1:12341`.
 
-### 3. Test file ASR API
+### 3. Recommended hardware
+
+- CPU: 4 cores or more is recommended.
+- Storage: OddAsr docker image(oddasr-cpu:v0.1.0) size is about 2.4GB, and you need about 6GB spaces for the ASR models, and 500M spaces for the logs.
+- Memory: 8GB or more is recommended.
+
+### 4. Test file ASR API
 
 Use the `testAPI.py` script to test the API:
 ```bash
@@ -69,17 +75,21 @@ python testAPI.py test_en_steve_jobs_10s.wav txt
 ```
 
 Example `curl` command:
-Send an audio file to the REST API:
+
+- Send an audio file to the REST API
 
 ```bash
 curl -X POST -F "audio=@path/to/audio.wav" http://127.0.0.1:12340/v1/asr
 ```
+
 Example `curl` command for testing the `test_cn_male_9s.wav` audio file:
+
 ```bash
 curl -X POST -F "audio=@test_cn_male_9s.wav" http://127.0.0.1:12340/v1/asr
 ```
 
 there are two test audio files in the repo:
+
 - `test_cn_male9s.wav`
 - `test_en_steve_jobs_10s.wav`
 
@@ -89,7 +99,7 @@ curl -X POST -F "audio=@test_cn_male_9s.wav" http://127.0.0.1:12340/v1/asr
 curl -X POST -F "audio=@test_en_steve_jobs_10s.wav" http://127.0.0.1:12340/v1/asr
 ```
 
-### 4. Test stream ASR API
+### 5. Test stream ASR API
 Use the `testStreamAPI.py` script to test the API, supports pcm and wav file as test input.
 
 - **Limitations**
@@ -110,8 +120,16 @@ python testStreamAPI.py test_cn_16k-16bits-mono.wav
 ```
 If your test input is a wav file, `testStreamAPI.py` will check sample rate and channel number, if not match, will raise error.
 
-### 5. Example output
+```bash
+python testStreamAPI.py test_cn_16k-16bits-mono.wav --concurrency 4
+```
+Simulate 4 real-time streaming requests to the server.
+
+
+### 6. Example output
+
 - text mode
+
 ```bash
 是开始这个呃实时的一个转写。
 对， 然后是转写的一个效果， 大概大概就是这个样子。 
@@ -121,6 +139,7 @@ If your test input is a wav file, `testStreamAPI.py` will check sample rate and 
 ```
 
 - spk mode
+
 ```bash
 发言人 0: 是开始这个呃实时的一个转写。
 发言人 0: 对，
@@ -136,6 +155,7 @@ If your test input is a wav file, `testStreamAPI.py` will check sample rate and 
 ```
 
 - srt mode
+
 ```bash
 0 00:00:01,010 --> 00:00:04,865 发言人 0: 是开始这个呃实时的一个转写。 
 1 00:00:06,040 --> 00:00:06,280 发言人 0: 对， 
@@ -250,12 +270,15 @@ You can use `docker logs -t oddasr` to check the download progress. If you find 
 ```
 
 ### 5. Some docker commands for Docker newbies
+- run oddasr container: `docker run -d -p 12340:12345 -p 12341:12346 --name oddasr-cpu oddasr-cpu:v0.1.0`
+- list all running containers: `docker ps`
 - print container logs: `docker logs -t oddasr-cpu`
 - enter bash of your container: `docker exec -it oddasr-cpu bash`
 - stop oddasr container: `docker stop oddasr-cpu`
 - remove container: `docker rm oddasr-cpu`
 - list container images: `docker images`
-- remove image: docker rmi oddasr-cpu
+- remove image: `docker rmi IMAGE-ID`. `IMAGE-ID` is the image id, you can get it from `docker images`
+
 ---
 
 ## TODO
