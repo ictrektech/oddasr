@@ -23,11 +23,22 @@ import odd_asr_config as config
 
 class AudioFrame:
     def __init__(self, data, sr: int = 16000, channel=1, bit_depth=16, timestamp = 0):
-        self.data = data  # 音频数据
+        self.data = data            # 音频数据
         self.timestamp = timestamp  # 时间戳
-        self.sr = sr  # 采样率
-        self.channel = 1  # 声道数
-        self.bit_depth = 16  # 位深度
+        self.sr = sr                # 采样率
+        self.channel = channel      # 声道数
+        self.bit_depth = 16         # 位深度
+
+class OddAsrStats:
+    def __init__(self):
+        self.index = 0
+        self.start_time = 0
+        self.end_time = 0
+        self.total_audio_recv_len = 0
+        self.total_audio_input_len = 0
+        self.total_asr_len = 0
+        self.total_asr_time = 0
+
 
 class OddAsrParamsStream:
     _mode: str = "stream"
@@ -48,7 +59,8 @@ class OddAsrParamsStream:
 
     _is_busy = False  # 初始化时设置为 False
     _websocket = None
-    _session_id = None
+    _stats = OddAsrStats()
+    task_id = None
 
     def __init__(self, 
                  mode="stream", 
@@ -117,7 +129,7 @@ class OddAsrStream:
         with self.lock:  # 使用锁保护共享资源
             self.streamParam._is_busy = is_busy
             if not is_busy:
-                logger.info(f"set_busy to False, clear _stop_event, websocket={self.streamParam._websocket}, session_id={self.streamParam._session_id}")
+                logger.info(f"set_busy to False, clear _stop_event, websocket={self.streamParam._websocket}, task_id={self.streamParam.task_id}")
                 self.streamParam._stop_event.set()
                 self.streamParam._transcription_thread.join()
                 self.streamParam._transcription_thread = None
@@ -136,13 +148,13 @@ class OddAsrStream:
         with self.lock:  # 使用锁保护共享资源
             return self.streamParam._websocket
         
-    def set_session_id(self, session_id):
+    def set_session_id(self, task_id):
         with self.lock:  # 使用锁保护共享资源
-            self.streamParam._session_id = session_id
+            self.streamParam.task_id = task_id
 
     def get_session_id(self):
         with self.lock:  # 使用锁保护共享资源
-            return self.streamParam._session_id
+            return self.streamParam.task_id
 
     def load_stream_model(self, device="cuda:0"):
         # load stream model
@@ -157,7 +169,7 @@ class OddAsrStream:
             disable_update=True,
         )
 
-    def transcribe_stream(self, audio_frame, socket, session_id):
+    def transcribe_stream(self, audio_frame, socket, task_id):
         '''
         transcribe audio stream, support real-time transcription, 
         and return partial result, like: 
@@ -196,11 +208,13 @@ class OddAsrStream:
                 self.streamParam._transcription_thread = threading.Thread(target=self._transcribe_thread_wrapper)
                 self.streamParam._transcription_thread.daemon = True  # 设置为守护线程
 
-                logger.info(f"start transcription_thread, websocket={socket}, session_id={session_id}")
+                logger.info(f"start transcription_thread, websocket={socket}, task_id={task_id}")
 
                 self.streamParam._transcription_thread.start()
+                self.streamParam._stats.start_time = time.time()
+
             else:
-                logger.error(f"transcription_thread is running, websocket={socket}, session_id={session_id}")
+                logger.info(f"transcription_thread is running, websocket={socket}, task_id={task_id}")
 
             # DONT terminite the thread, just add an empty audio_frame to queue, let the previous frames to be processed
             if audio_frame is None:  # Receive EOF signal
@@ -210,6 +224,7 @@ class OddAsrStream:
                 copied_audio_frame = copy.deepcopy(audio_frame)
                 frame = AudioFrame(data=copied_audio_frame)
                 self.streamParam._audio_queue.put(frame)
+                self.streamParam._stats.total_audio_recv_len += len(audio_frame.data)
 
         except Exception as e:
             logger.error(f"Error in transcribe_stream: {e}")
@@ -263,20 +278,20 @@ class OddAsrStream:
 
         try:
             while not self.streamParam._stop_event.is_set():
-                # 从队列中获取音频帧，设置超时时间为 1 秒
-                logger.info(f"queue length: {self.streamParam._audio_queue.qsize()},websocket={self.streamParam._websocket}")
+                # read from queue, timeout 1 second
                 try:
                     frame: AudioFrame = self.streamParam._audio_queue.get(timeout=1)
-                except queue.Empty:  # 超时后继续循环
+                    logger.info(f"queue length: {self.streamParam._audio_queue.qsize()},websocket={self.streamParam._websocket}")
+                except queue.Empty:  # sleep 100ms if read timeout
                     time.sleep(0.1)
                     continue
 
                 if frame.data is None:  # 收到 EOF 信号
                     logger.warn(f"Received EOF signal, stopping transcription thread.")
                     is_final = True
-                    break
+                    # break
 
-                # 保存到录音文件
+                # save the pcm to a record file
                 if self.streamParam._rec_file != "":
                     self._save_audio_rec(self.streamParam._rec_file, frame.data, frame.sr)
                 
@@ -284,7 +299,7 @@ class OddAsrStream:
 
                 chunk_stride = self.streamParam._chunk_size[1] * 960 # 600ms
                 total_chunk_num = int(len(speech)/chunk_stride)
-                logger.info(f"Processing frame, stride: {chunk_stride}, data={len(speech)}, total_chunk_num={total_chunk_num}, speech type={type(speech)}")
+                logger.info(f"Processing frame, stride: {chunk_stride}, data={len(speech)}, total_chunk_num={total_chunk_num}, is_final={is_final}")
 
                 for i in range(total_chunk_num):
                     start = i * chunk_stride
@@ -295,26 +310,60 @@ class OddAsrStream:
 
                     try:
                         text = self.stream_model.generate(input=audio_chunk, 
-                                                          input_len=len(audio_chunk),
+                                                            input_len=len(audio_chunk), 
                                                             cache=cache, 
                                                             is_final=is_final, 
                                                             # return_raw_text=True,
-                                                            # sentence_timestamp=True,
-                                                            hotword=hotwords,
+                                                            sentence_timestamp=True,
+                                                            hotword=hotwords, 
                                                             chunk_size=self.streamParam._chunk_size, 
                                                             encoder_chunk_look_back=self.streamParam._encoder_chunk_look_back, 
                                                             decoder_chunk_look_back=self.streamParam._decoder_chunk_look_back
                                                             )
 
-                        logger.info(f"res={text}, websocket={self.streamParam._websocket}")
+                        self.streamParam._stats.total_audio_input_len += len(audio_chunk)
+                        self.streamParam._stats.start_time = self.streamParam._stats.total_audio_input_len*1000/256000
+                        logger.info(f"res={text}, websocket={self.streamParam._websocket}, total input={self.streamParam._stats.total_audio_input_len}, start_time={self.streamParam._stats.start_time}")
                         websocket = self.streamParam._websocket
                         if websocket is not None:
-                            result = OddAsrStreamResult(websocket, text)
+                            result = OddAsrStreamResult(websocket, text, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time)
                             enque_asr_result(result)
 
                     except Exception as e:
                         logger.error(f"Error processing audio chunk: {e}")
                         continue
+
+                # feed the remaining data to the model
+                remaining_start = total_chunk_num * chunk_stride
+                if remaining_start < len(speech):
+                    audio_chunk = speech[remaining_start:]
+                    # audio_chunk = speech[total_chunk_num * chunk_stride:remaining_start]
+                    is_final = True
+                    logger.info(f"Processing remaining data, start={remaining_start}, end={len(speech)}, audio_chunk shape: {audio_chunk.shape}, is_final={is_final}")
+                    try:
+                        text = self.stream_model.generate(input=audio_chunk, 
+                                                            input_len=len(audio_chunk), 
+                                                            cache=cache, 
+                                                            is_final=is_final, 
+                                                            # return_raw_text=True,
+                                                            sentence_timestamp=True,
+                                                            hotword=hotwords, 
+                                                            chunk_size=self.streamParam._chunk_size, 
+                                                            encoder_chunk_look_back=self.streamParam._encoder_chunk_look_back, 
+                                                            decoder_chunk_look_back=self.streamParam._decoder_chunk_look_back
+                                                            )
+
+                        self.streamParam._stats.total_audio_input_len += len(audio_chunk)
+                        self.streamParam._stats.start_time = self.streamParam._stats.total_audio_input_len*1000/256000
+                        logger.info(f"res={text}, websocket={self.streamParam._websocket}, total input={self.streamParam._stats.total_audio_input_len}, start_time={self.streamParam._stats.start_time}")
+                        websocket = self.streamParam._websocket
+                        if websocket is not None:
+                            result = OddAsrStreamResult(websocket, text, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time, is_final=is_final)
+                            enque_asr_result(result)
+
+                    except Exception as e:
+                        logger.error(f"Error processing remaining audio chunk: {e}")
+
                 time.sleep(0.1)
 
             logger.info(f"Transcription thread stopped.")

@@ -14,24 +14,17 @@ from odd_asr_exceptions import mai_err_name, EM_ERR_ASR_ARGS_ERROR
 from websockets.asyncio.server import serve
 import json
 from odd_asr_exceptions import *
-from proto import TCMDCommonRes, obj_to_dict, TCMDApplyAsrRes
+from proto import TOddAsrTranscribeRes, obj_to_dict, TOddAsrApplyRes, obj_from_dict_recursive, obj_to_dict_recursive
 import numpy as np
 import websockets
 
 '''
 client --> server: TCmdApppyAsrReq
-server --> client: TCmdApppyAsrRsp with session_id
+server --> client: TCmdApppyAsrRsp with task_id
 server --> server: add client to clients
 client --> server: PCMData
 server --> client: ASRResult
 
-            struct TCmdApppyAsrReq
-            {
-                std::string msg_type = MSG_APPLY_ASR_REQ;
-                std::string msg_id;
-                std::string token;
-                std::string session_id;	//重连的时候带
-            };
 '''
 
 import uuid
@@ -46,7 +39,7 @@ odd_asr_stream_set = set()
 # odd_asr_stream_dict = dict()
 _wss_server = None
 
-def find_free_odd_asr_stream(websocket, session_id):
+def find_free_odd_asr_stream(websocket, task_id):
     '''
     找到一个空闲的odd_asr_stream
     :param websocket:
@@ -55,7 +48,7 @@ def find_free_odd_asr_stream(websocket, session_id):
     for odd_asr_stream in odd_asr_stream_set:
         if not odd_asr_stream.is_busy():
             odd_asr_stream.set_busy(True)
-            odd_asr_stream.set_session_id(session_id)
+            odd_asr_stream.set_session_id(task_id)
             odd_asr_stream.set_websocket(websocket)
 
             return odd_asr_stream
@@ -74,14 +67,14 @@ def find_odd_asr_stream_by_websocket(websocket):
         
     return None
 
-def find_odd_asr_stream_by_session_id(session_id):
+def find_odd_asr_stream_by_session_id(task_id):
     '''
     找到一个已存在的odd_asr_stream
-    :param session_id:
+    :param task_id:
     :return:
     '''
     for odd_asr_stream in odd_asr_stream_set:
-        if odd_asr_stream.get_session_id() == session_id:
+        if odd_asr_stream.get_session_id() == task_id:
             return odd_asr_stream
     return None
 
@@ -107,15 +100,17 @@ class OddWssServer:
                 if not websocket in self._clients_set:
                     '''
                     新连接上来的client，第一个消息必须是一个json.
-                    msg_type: MSG_APPLY_ASR_REQ
-                    msg_id: 消息id
+                    namespace: SpeechTranscriber
+                    name: StartTranscription
+                    message_id: 消息id
                     token: 鉴权token
-                    session_id: 正常第一次连接为空，Apply成功后，由服务端生成并返回给客户端。客户端断线重连的时候带上。
+                    task_id: 正常第一次连接为空，Apply成功后，由服务端生成并返回给客户端。客户端断线重连的时候带上。
                     '''
-                    result, res, session_id = self.doInit(websocket, message)
+                    result, res, task_id = self.doInit(websocket, message)
 
-                    logger.info(f"doInit={result}, res={obj_to_dict(res)}, websocket={websocket}, session_id={session_id}")
-                    await websocket.send(json.dumps(obj_to_dict(res)))
+                    logger.info(f"doInit={result}, res={obj_to_dict_recursive(res)}, websocket={websocket}, task_id={task_id}")
+
+                    await websocket.send(json.dumps(obj_to_dict_recursive(res)))
 
                     if result:
                         logger.debug(f"add client={websocket} to clients_set")
@@ -125,22 +120,22 @@ class OddWssServer:
                         return False
 
                     # find a odd_asr_stream
-                    odd_asr_stream:OddAsrStream = find_odd_asr_stream_by_session_id(session_id=session_id)
+                    odd_asr_stream:OddAsrStream = find_odd_asr_stream_by_session_id(task_id=task_id)
                     if odd_asr_stream is None:
-                        odd_asr_stream = find_free_odd_asr_stream(websocket, session_id)
+                        odd_asr_stream = find_free_odd_asr_stream(websocket, task_id)
                         if odd_asr_stream is None:
                             logger.error(f"no free odd_asr_stream, close client={websocket}")
                             await websocket.close()
                             return
                         else:
-                            logger.debug(f"found free odd_asr_stream, session_id={session_id}")
-                            self._sessionid_set.add(session_id)
+                            logger.debug(f"found free odd_asr_stream, task_id={task_id}")
+                            self._sessionid_set.add(task_id)
                     else:
-                        logger.debug(f"found existing odd_asr_stream, session_id={session_id}, websocket={odd_asr_stream.get_websocket()}:{websocket}")
+                        logger.debug(f"found existing odd_asr_stream, task_id={task_id}, websocket={odd_asr_stream.get_websocket()}:{websocket}")
 
                     self._clients_set.add(websocket)
-                    self._conn_sessionid[websocket] = session_id
-                    self._sessionid_conn[session_id] = websocket
+                    self._conn_sessionid[websocket] = task_id
+                    self._sessionid_conn[task_id] = websocket
                 else:
                     '''
                     客户端已经申请过ASR，并且已经连接上了，此时收到的消息是PCMData
@@ -185,13 +180,12 @@ class OddWssServer:
         speech = pcm_array.astype(np.float32) / 32768.0
 
         # 找到对应的odd_asr_stream
-        session_id = ""
-        # session_id = self._conn_sessionid[websocket]
+        task_id = ""
         odd_asr_stream: OddAsrStream = find_odd_asr_stream_by_websocket(websocket=websocket)
         if odd_asr_stream:
-            session_id = odd_asr_stream.get_session_id()
-            logger.debug(f"find_odd_asr_stream_by_websocket, session_id={session_id}")
-            odd_asr_stream.transcribe_stream(speech, socket=websocket, session_id=session_id)
+            task_id = odd_asr_stream.get_session_id()
+            logger.debug(f"find_odd_asr_stream_by_websocket, task_id={task_id}")
+            odd_asr_stream.transcribe_stream(speech, socket=websocket, task_id=task_id)
         else:
             logger.error(f"find_odd_asr_stream_by_websocket, not found, websocket={websocket}")
 
@@ -203,85 +197,91 @@ class OddWssServer:
             然而暂不在sessionid_set中删除，因为可能是客户端断线重连，此时sessionid还存在。
             但是，后面需要做一个计时器，定期检查，若超时未收到客户端的消息，则删除sessionid。
             '''
-            session_id = self._conn_sessionid[websocket]
+            task_id = self._conn_sessionid[websocket]
 
-            self._sessionid_set.remove(session_id)
-            self._sessionid_conn.pop(session_id)
+            self._sessionid_set.remove(task_id)
+            self._sessionid_conn.pop(task_id)
             self._conn_sessionid.pop(websocket)
             self._clients_set.remove(websocket)
-            odd_asr_stream = find_odd_asr_stream_by_session_id(session_id=session_id)
+            odd_asr_stream = find_odd_asr_stream_by_session_id(task_id=task_id)
 
-            logger.warn(f"remove session_id={session_id}, client={websocket}, odd_asr_stream={odd_asr_stream}")
+            logger.warn(f"remove task_id={task_id}, client={websocket}, odd_asr_stream={odd_asr_stream}")
 
             if odd_asr_stream:
                 odd_asr_stream.set_websocket(None)
-                odd_asr_stream.set_session_id('')
                 odd_asr_stream.set_busy(False)
+                odd_asr_stream.set_session_id('')
 
-            logger.warn(f"remove session_id={session_id}, client={websocket}")
+            logger.warn(f"remove task_id={task_id}, client={websocket}")
         else:
             logger.error(f"client={websocket} not in clients_set")
 
     def doInit(self, websocket, message):
         # 解析json，若第一个消息不是json，则关闭连接
         result = False
-        session_id = ""
         try:
             req = json.loads(message)
         except Exception as e:
             logger.error(f"Invalid json format. Received message: {message}. webocket={websocket}")
-            msg_id = ''
-            msg_type = ''
+            message_id = ''
+            name = ''
 
-            res = TCMDCommonRes(msg_id, msg_type)
-            res.error_code = EM_ERR_ASR_ARGS_ERROR
-            res.error_desc = mai_err_name(EM_ERR_ASR_ARGS_ERROR)
+            res = TOddAsrApplyRes()
+            res.header.message_id = message_id
+            res.header.name = name
+            res.header.status = EM_ERR_ASR_ARGS_ERROR
+            res.header.status_text = mai_err_name(EM_ERR_ASR_ARGS_ERROR)
 
-            return result, res, session_id
-
-        # 若第一个消息不是MSG_APPLY_ASR_REQ，则关闭连接
-        if req['msg_type'] != 'MSG_APPLY_ASR_REQ':
-            logger.error(f"Invalid msg_type. Received message: {message}, req['msg_type']")
-            msg_id = req['msg_id'] if 'msg_id' in req else ''
-            msg_type = req['msg_type'] if 'msg_type' in req else ''
-            res = TCMDCommonRes(msg_id, msg_type)
-            res.error_code = EM_ERR_ASR_ARGS_ERROR
-            res.error_desc = mai_err_name(EM_ERR_ASR_ARGS_ERROR)
-
-            return result, res, session_id
+            return result, res, ""
 
         # 解析json中的session_id
-        res = TCMDApplyAsrRes(req['msg_id'])
-        if "session_id" in req and req['session_id']:
-            if req['session_id'] in self._sessionid_set:
-                '''若session_id已经存在，说明是之前已经申请过ASR，但是中间网络异常，并断线重连了
+        res = TOddAsrApplyRes()
+        res.header.message_id = req['message_id'] if 'message_id' in req else ''
+        res.header.task_id = req['task_id'] if 'task_id' in req else ''
+        res.header.name = req['name'] if 'name' in req else ''
+
+        # 若第一个消息不是StartTranscription，则关闭连接
+        if req['name'] != 'StartTranscription':
+            logger.error(f"Invalid name. Received message: {message}, req['name']")
+            res.header.status = EM_ERR_ASR_ARGS_ERROR
+            res.header.status_text = mai_err_name(EM_ERR_ASR_ARGS_ERROR)
+
+            return result, res, res.header.task_id
+
+        if "task_id" in req and req['task_id']:
+            if req['task_id'] in self._sessionid_set:
+                '''若task_id已经存在，说明是之前已经申请过ASR，但是中间网络异常，并断线重连了
                 '''
-                res.session_id = req['session_id']
-                self._sessionid_conn[req['session_id']] = websocket
-                self._conn_sessionid[websocket] = req['session_id']
-                session_id = req['session_id']
+                self._sessionid_conn[req['task_id']] = websocket
+                self._conn_sessionid[websocket] = req['task_id']
+
+                res.header.status = 0
+                res.header.status_text = "Success"
+
                 result = True
             else:
                 '''
-                若session_id不存在，说明是一个非法请求
+                若task_id不存在，说明是一个非法请求
                 '''
-                logger.error(f"Received message: {message}, req['session_id']={req['session_id']}")
-                res.session_id = ''
-                res.error_code = EM_ERR_ASR_SESSION_ID_NOVALID
-                res.error_desc = mai_err_name(EM_ERR_ASR_SESSION_ID_NOVALID)
+                logger.error(f"Received message: {message}, req['task_id']={req['task_id']}")
+                res.header.status  = EM_ERR_ASR_SESSION_ID_NOVALID
+                res.header.status_text = mai_err_name(EM_ERR_ASR_SESSION_ID_NOVALID)
                 result = False
         else:
             '''
-            若session_id为空，说明是第一次申请ASR，需要生成一个session_id
+            若task_id为空，说明是第一次申请ASR，需要生成一个task_id
             '''
-            res.session_id = str(uuid.uuid1())
-            self._sessionid_set.add(res.session_id)
-            self._sessionid_conn[res.session_id] = websocket
-            self._conn_sessionid[websocket] = res.session_id
-            session_id = res.session_id
+            res.header.task_id = str(uuid.uuid1())
+            res.header.name = "SentenceBegin"
+            res.header.status = 0
+
+            self._sessionid_set.add(res.header.task_id)
+            self._sessionid_conn[res.header.task_id] = websocket
+            self._conn_sessionid[websocket] = res.header.task_id
+
             result = True
 
-        return result, res, session_id
+        return result, res, res.header.task_id
 
 
     async def send(self, websocket, message):
@@ -298,7 +298,15 @@ async def notify_task(_wss_server=None):
             if _wss_server:
                 if message.webocket in _wss_server._clients_set:
                     # 发送消息给客户端
-                    logger.debug(f"notifyTask: send to client={message.webocket}")
+                    res = TOddAsrTranscribeRes()
+                    res.header.message_id = message.message_id
+                    res.header.name = message.name
+                    res.header.status = message.status
+                    res.header.status_text = message.status_text
+                    res.payload = message.payload
+                    message.text = json.dumps(obj_to_dict_recursive(res))
+                    
+                    logger.debug(f"notifyTask: send to client={message.webocket}, message.text={message.text}")
                     await _wss_server.doSend(message.webocket, message.text)
         except queue.Empty:
             # 队列为空，继续等待

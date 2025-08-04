@@ -19,7 +19,7 @@ Debug = False
 enable_gpu = False
 
 ## asr stream config
-asr_stream_cfg= { 'max_instance': 60 }
+asr_stream_cfg= { 'max_instance': 2 }
 ## asr file config
 asr_file_cfg= { 'max_instance':2 }
 
