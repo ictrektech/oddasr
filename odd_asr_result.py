@@ -10,6 +10,8 @@
 
 import queue
 import asyncio
+from funasr import AutoModel
+
 from log import logger
 import proto
 
@@ -49,13 +51,18 @@ def from_data(data):
 
 class OddAsrStreamResult:
     res = proto.TOddAsrTranscribeRes()
-    def __init__(self, webocket, text, index=0, begin_time=0, is_final=False, is_last=False):
+    # punc_model: AutoModel = None
+
+    def __init__(self, punc_model, webocket, text, index=0, begin_time=0, is_final=False, is_last=False):
+        self.punc_model = punc_model
         self.webocket = webocket
         
         if is_final:
             self.res.header.name = "SentenceEnd"
+            # self.cached_text = ""
         else:
             self.res.header.name = "TranscriptionResultChanged"
+            # self.cached_text += text
 
         self.res.payload.result = text
         self.res.payload.begin_time = begin_time
@@ -76,6 +83,12 @@ async def notify_task(_wss_server=None):
                 # print(f"queue size={asr_result_queue.qsize()}")
                 message:OddAsrStreamResult = asr_result_queue.get()
                 # print(f"notifyTask: {message.text}")
+
+                # if message.punc_model:
+                #     message.res.payload.result = message.res.payload.result.replace(" ", "")
+                #     message.res.payload.fin = 1
+                # else:
+                #     message.res.payload.fin = 1
 
                 if _wss_server:
                     if message.webocket in _wss_server._clients_set:

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns="http://www.w3.org/1999/html">
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- popper -->
+<script src="common/popper.min.js"></script>
+<script src="common/xlsx.core.min.js"></script>
+<!-- Bootstrap 4 -->
+<!-- Bootstrap Switch -->
+<script src="plugins/bootstrap/js/bootstrap-switch.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap-table.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap-table-auto-refresh.min.js"></script>
+<!-- AdminLTE App -->
+<script src="dist/js/adminlte.min.js"></script>
+<script src="common/oddasr.js"></script>
+<script src="common/js/hotwords.js"></script>
+
+
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+<!-- Theme style -->
+<link rel="stylesheet" href="dist/css/adminlte.min.css">
+<link rel="stylesheet" href="plugins/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="plugins/bootstrap/css/bootstrap-table.min.css">
+<!-- setting_hotwords  style -->
+<link rel="stylesheet" href="common/css/hotwords.css">
+
+<body>
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1 class="m-0">热词设置</h1>
+      </div><!-- /.col -->
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right" hidden="hidden">
+          <li class="breadcrumb-item"><a href="#">系统配置</a></li>
+          <li class="breadcrumb-item active">热词设置</li>
+        </ol>
+      </div><!-- /.col -->
+    </div><!-- /.row -->
+  </div><!-- /.container-fluid -->
+</div>
+<!-- /.content-header -->
+
+<!-- Main content -->
+<div class="content">
+    <div class="container-fluid">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">个性化热词</h3>
+            </div>
+            <p style="color: rgb(161, 161, 161);font-size:80%;margin-top: 20px;margin-left: 20px;">个性化热词，即让应用准确识别特定的词语（“热词”）。简单发布，快速生效，实现个性化转写。</p>
+            <div class="form-group row filter-box">
+
+                <div class="card-body row">
+
+
+                    <div class="col-md-1 p0">
+                        <select name="hot_words_type" id="hot_words_type">
+                            <option value="all" >全部热词类型</option>
+                            <option value="0">人名</option>
+                            <option value="1">地名</option>
+                            <option value="2">专有名词</option>
+                        </select>
+
+                    </div>
+
+                    <div class="col-md-1"></div>
+
+                    <div class="col-md-5"></div>
+
+
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-block btn-outline-secondary btn-sm"
+                                id="export_hotwords_template">下载模板
+                        </button>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="btn btn-outline-secondary btn-block btn-sm  import-btn">
+                            <input type="file" style="display: none" id="import_hotwords_excel" accept=".xls, .xlsx" single>
+                            <span>导入热词</span>
+                        </label>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-block btn-outline-secondary btn-sm"
+                                id="export_hotwords_excel">
+                            导出热词
+                        </button>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-block btn-outline-secondary btn-sm" id="add-btn"
+                        >添加
+                        </button>
+                    </div>
+
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-block btn-outline-secondary btn-sm" id="batch-delete-btn">
+                            删除
+                        </button>
+                    </div>
+
+                </div>
+
+
+            </div>
+            <!-- Main content -->
+            <div class="content table-content">
+                <div class="container-fluid">
+                    <div class="card-body table-responsive p-0">
+                        <table id="hotwords_table" data-toggle="table" style="table-layout:fixed;word-break:break-all;">
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!--添加热词-->
+            <div class="add_box" id="addBox">
+                <div class="back_box row">
+                    <div class="col-md-1 p0">
+                        <span class="detail_arrow_right" id="btnBack"></span>
+                        <span class="control_title">添加热词</span>
+                    </div>
+                    <div class="col-md-8">
+                    </div>
+                    <div class="col-md-1">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-block btn-outline-secondary btn-sm"
+                                  id="addWordSave"  >保存
+                        </button>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-block btn-outline-secondary btn-sm"
+                            id="cancelWordSave"    >取消
+                        </button>
+                    </div>
+                </div>
+
+                <div class="btn-wrap">
+                    <span class="current" id="particular">人名</span>
+                    <span id="typePlace">地名</span>
+                    <span id="typeSpecious">专有名词</span>
+                </div>
+                <div class="hotword-text-wrap">
+                    <div class="hotword-text">
+
+                        <input type="text" name="" placeholder="请输入热词，回车确认"
+                               class="form-control add_word_text addWordText"
+                               autocomplete="off">
+                        <span class="btn-add"></span>
+                        <p class="add_word_tips addWordTips addWordTips">
+                            专有名词为行业术语、热词、专用词汇，eg. 视频会议、十四五规划等
+                        </p>
+                        <div class="add_word_area">
+
+                        </div>
+                    </div>
+                    <div class="hotword-text">
+                        <input type="text" name="" placeholder="请输入热词，回车确认"
+                               class="form-control add_word_text addWordText "
+                               autocomplete="off">
+                        <span class="btn-add"></span>
+                        <p class="add_word_tips addWordTips addWordTips">
+                            专有名词为行业术语、热词、专用词汇，eg. 视频会议、十四五规划等
+                        </p>
+                        <div class="add_word_area"></div>
+                    </div>
+                    <div class="hotword-text">
+                        <input type="text" name="" placeholder="请输入热词，回车确认"
+                               class="form-control add_word_text addWordText"
+                               autocomplete="off">
+                        <span class="btn-add"></span>
+                        <p class="add_word_tips addWordTips  addWordTips">
+                            专有名词为行业术语、热词、专用词汇，eg. 视频会议、十四五规划等
+                        </p>
+
+                        <div class="add_word_area"></div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- /.container-fluid -->
+    </div>
+    <!-- /.content -->
+
+
+</div>
+
+</body>
+</html>

@@ -159,12 +159,14 @@ class TOddAsrPayloadRes:
     begin_time  Integer 当前句子对应的 SentenceBegin 事件的时间，单位是毫秒
     result      String 当前的识别结果
     confidence  Double 当前句子识别结果的置信度，取值范围[0.0, 1.0]，值越大表示置信度越高    
+    fin         Integer 句子是否结束，1 表示结束，0 表示未结束
     '''
     index = 0
     time = 0
     begin_time = 0
     result = ""
     confidence = 1.0
+    fin = 1
 
 class TOddAsrApplyReq:
     '''

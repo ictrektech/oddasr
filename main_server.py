@@ -19,10 +19,6 @@ import odd_asr_config as config
 
 if __name__ == '__main__':
 
-    # parser = argparse.ArgumentParser(description='Control whether to enable streaming ASR')
-    # parser.add_argument('--disable_stream', action='store_true', help='Disable streaming ASR')
-    # args = parser.parse_args()
-
     def start_wss_in_thread():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -32,8 +28,7 @@ if __name__ == '__main__':
             loop.close()
 
     # start websocket server
-    # if not args.disable_stream:
-    if not config.disable_stream:
+    if not config.odd_asr_cfg["disable_stream"]:
         wss_thread = threading.Thread(target=start_wss_in_thread)
         wss_thread.daemon = True  # 设置为守护线程，主线程退出时自动退出
         wss_thread.start()
@@ -41,7 +36,14 @@ if __name__ == '__main__':
     else:
         logger.info("WebSocket server disabled.")
 
+    # Start Flask server with HTTPS support
     init_instance_file()
+    logger.info(f"Starting server on {'https' if config.odd_asr_cfg['enable_https'] else 'http'}://{config.HOST}:{config.PORT}")
+    if config.odd_asr_cfg["enable_https"]:
+        ssl_context = (config.odd_asr_cfg["ssl_cert_path"], config.odd_asr_cfg["ssl_key_path"])
+        app.run(host=config.HOST, port=config.PORT, ssl_context=ssl_context, debug=config.Debug)
+    else:
+        app.run(host=config.HOST, port=config.PORT, debug=config.Debug)
+
     # Start Flask server and listen for requests from any host
     # print(app.url_map)
-    app.run(host=config.HOST, port=config.PORT, debug=config.Debug)

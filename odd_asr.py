@@ -42,7 +42,7 @@ class OddAsrFile:
         else:
             self._fileParam = fileParam
 
-        if config.enable_gpu:
+        if config.odd_asr_cfg["enable_gpu"]:
             # auto detect GPU _device
             if torch.cuda.is_available():
                 self._device = "cuda:0"
@@ -54,12 +54,15 @@ class OddAsrFile:
             self._device = "cpu"
 
         # load model on init due to the model is large, and the model is not loaded on the first call
-        self.load_file_model(self._device)
+        if config.odd_asr_cfg["preload_model"]:
+            self.load_file_model(self._device)
 
         self.lock = threading.Lock()  # mutex lock for _is_busy
 
     def load_file_model(self, device="cuda:0"):
         # load file model
+        if self._model is not None:
+            return
 
         logger.info(f"Loading model with device={device}")
 
@@ -69,7 +72,8 @@ class OddAsrFile:
             vad_model='iic/speech_fsmn_vad_zh-cn-16k-common-pytorch', vad_model_revision="v2.0.4",
             # punc_model='ct-punc',
             punc_model='iic/punc_ct-transformer_cn-en-common-vocab471067-large', punc_model_revision="v2.0.4",
-            spk_model="cam++",
+            # spk_model="cam++",
+            spk_model="iic/speech_campplus_sv_zh-cn_16k-common", spk_model_revision="v2.0.4",
             # spk_model="iic/speech_campplus_sv_zh-cn_3dspeaker_16k",
             log_level="error",
             hub="ms",  # hub：表示模型仓库，ms为选择modelscope下载，hf为选择huggingface下载。

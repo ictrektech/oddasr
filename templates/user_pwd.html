@@ -1,0 +1,169 @@
+<!-- Font Awesome -->
+<link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+<!-- Theme style -->
+<link rel="stylesheet" href="dist/css/adminlte.min.css">
+<!-- user_pwd style -->
+<link rel="stylesheet" href="common/css/user_pwd.css">
+
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">修改密码</h1>
+            </div><!-- /.col -->
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right" hidden="hidden">
+                    <li class="breadcrumb-item"><a href="#">用户管理</a></li>
+                    <li class="breadcrumb-item active">修改密码</li>
+                </ol>
+            </div><!-- /.col -->
+        </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+</div>
+<!-- /.content-header -->
+
+<!-- Main content -->
+<div class="content">
+    <div class="container-fluid">
+
+        <!-- general form elements -->
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">修改密码</h3>
+            </div>
+            <!-- /.card-header -->
+            <!-- form start -->
+            <form>
+                <div class="card-body">
+
+                    <div class="alert alert-warning alert-dismissible" id="tips_show" style="display:none;">
+                        <div id="tips_content">warnning</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="user" class="label-text">当前用户</label>
+                        <label class="setting-item-main">
+                            <input type="text" class="form-control" id="user" placeholder="text" value='{{username}}'
+                                   readonly/>
+                        </label>
+
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="oldPassword" class="label-text">当前密码</label>
+                        <label class="setting-item-main">
+                            <input type="password" id="oldPassword"
+                                   placeholder="Password"
+                                   autocomplete="new-password"
+                                   name="oldPassword" class="form-control"
+                                   maxlength="16" onpaste="return false"
+                                   oncopy="return false"
+                                   oncut="return false">
+                            <span class="showHidePassword"></span>
+                            <div class="capitals-tip displayNone"
+                                 id="capital_oldPassword"><span>大写已开启</span></div>
+                        </label>
+                        <label class="oldPasswordTip tipWrapper">
+                            <span class="tip-icon "></span>
+                            <span class="tip-info "></span>
+                        </label>
+                        <!--                    <input type="password" class="form-control" id="oldPassword1" placeholder="Password" />-->
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newPassword" class="label-text">新密码</label>
+                        <!--                    <input type="password" class="form-control" id="newPassword1" placeholder="Password">-->
+                        <label class="setting-item-main">
+                            <input type="password" id="newPassword"
+                                   name="newPassword" class="form-control"
+                                   maxlength="16" onpaste="return false"
+                                   placeholder="Password"
+                                   oncopy="return false"
+                                   oncut="return false">
+                            <span class="showHidePassword"></span>
+                            <div class="capitals-tip displayNone"
+                                 id="capital_newPassword"><span>大写已开启</span></div>
+                        </label>
+                        <label class="newPasswordTip tipWrapper">
+                            <span class="tip-icon "></span>
+                            <span class="tip-info "></span>
+                            <a class="help" style="display: none">帮助</a>
+
+                        </label>
+                        <div class="text-tips" style="display: none">
+                            8-16个数字、大小写字母、符号"_" "."至少包含2种
+                        </div>
+
+                        <div class="help-info displayNone">
+                            <ul>
+                                <li class="help-title">密码安全</li>
+                                <li class="weak-help help-li">
+                                    <p>弱：包含数字和字母，字母区分大小写。</p>
+                                    <p class="help-first">示例：Ad468388</p>
+                                    <p class="help-none-first">ad468388</p>
+                                </li>
+                                <li class="medium-help help-li">
+                                    <p>中：包含数字和1个字符，或字母和1个字符。</p>
+                                    <p class="help-first">示例：48.54488</p>
+                                    <p class="help-none-first">admin_188</p>
+                                    <p class="help-none-first">Ad4.8388</p>
+                                </li>
+                                <li class="strong-help help-li">
+                                    <p>强：包含数字、字母和多个字符。</p>
+                                    <p class="help-first">示例：ad_4.888</p>
+                                    <p class="help-none-first">A.d4.688</p>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="rePassword" class="label-text">确认新密码</label>
+                        <label class="setting-item-main">
+                            <input type="password" id="rePassword"
+                                   placeholder="Password"
+                                   name="rePassword" class="form-control"
+                                   maxlength="16" onpaste="return false"
+                                   oncopy="return false"
+                                   oncut="return false">
+                            <span class="showHidePassword"></span>
+                            <div class="capitals-tip displayNone"
+                                 id="capital_rePassword"><span>大写已开启</span></div>
+                        </label>
+                        <label class="rePasswordTip tipWrapper">
+                            <span class="tip-icon "></span>
+                            <span class="tip-info "></span>
+                        </label>
+                        <!--                    <input type="password" class="form-control" id="newPassword2" placeholder="Password">-->
+                    </div>
+                </div>
+
+
+        </div>
+        <!-- /.card-body -->
+
+        <div class="card-footer">
+            <button type="button" class="btn btn-primary update-btn" >修改</button>
+        </div>
+        </form>
+    </div>
+    <!-- /.card -->
+</div>
+<!-- /.container-fluid -->
+</div>
+<!-- /.content -->
+
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<!-- AdminLTE App -->
+<script src="dist/js/adminlte.min.js"></script>
+<!--user_pwd.js-->
+<script src="common/js/user_pwd.js"></script>
+
+

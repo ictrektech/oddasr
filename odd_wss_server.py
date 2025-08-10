@@ -10,13 +10,20 @@
 """Server example using the asyncio API."""
 
 import asyncio
-from odd_asr_exceptions import mai_err_name, EM_ERR_ASR_ARGS_ERROR
 from websockets.asyncio.server import serve
 import json
-from odd_asr_exceptions import *
-from proto import TOddAsrTranscribeRes, obj_to_dict, TOddAsrApplyRes, obj_from_dict_recursive, obj_to_dict_recursive
 import numpy as np
 import websockets
+import ssl
+import uuid
+import queue
+
+from odd_asr_stream import OddAsrStream, OddAsrParamsStream
+from odd_asr_result import notifyTask
+import odd_asr_config as config
+from log import logger
+from odd_asr_exceptions import *
+from proto import TOddAsrTranscribeRes, obj_to_dict, TOddAsrApplyRes, obj_from_dict_recursive, obj_to_dict_recursive
 
 '''
 client --> server: TCmdApppyAsrReq
@@ -27,13 +34,6 @@ server --> client: ASRResult
 
 '''
 
-import uuid
-import queue
-
-from odd_asr_stream import OddAsrStream, OddAsrParamsStream
-from odd_asr_result import notifyTask
-import odd_asr_config as config
-from log import logger
 
 odd_asr_stream_set = set()
 # odd_asr_stream_dict = dict()
@@ -174,18 +174,13 @@ class OddWssServer:
     def onRecv(self, websocket, pcm_data):
         logger.debug(f"onRecv: {len(pcm_data)}, websocket={websocket}")
 
-        # Convert bytes to a NumPy array of int16
-        pcm_array = np.frombuffer(pcm_data, dtype=np.int16)
-        # Convert the array to float32 and normalize it
-        speech = pcm_array.astype(np.float32) / 32768.0
-
         # 找到对应的odd_asr_stream
         task_id = ""
         odd_asr_stream: OddAsrStream = find_odd_asr_stream_by_websocket(websocket=websocket)
         if odd_asr_stream:
             task_id = odd_asr_stream.get_session_id()
             logger.debug(f"find_odd_asr_stream_by_websocket, task_id={task_id}")
-            odd_asr_stream.transcribe_stream(speech, socket=websocket, task_id=task_id)
+            odd_asr_stream.transcribe_stream(pcm_data, socket=websocket, task_id=task_id)
         else:
             logger.error(f"find_odd_asr_stream_by_websocket, not found, websocket={websocket}")
 
@@ -331,7 +326,7 @@ def init_instances_stream(server: OddWssServer):
     :param server:
     :return:
     '''
-    max_instance = config.asr_stream_cfg["max_instance"]
+    max_instance = config.odd_asr_cfg["asr_stream_cfg"]["max_instance"]
     if max_instance <= 0:
         max_instance = 2
 
@@ -354,6 +349,7 @@ def init_notify_task(server: OddWssServer):
     notify_Task = notifyTask()
     notify_Task.start(server)
 
+
 async def start_wss_server():
     global _wss_server
     _wss_server = OddWssServer()
@@ -361,8 +357,17 @@ async def start_wss_server():
     init_notify_task(_wss_server)
     init_instances_stream(_wss_server)
 
-    async with serve(_wss_server.handle_client, config.WS_HOST, config.WS_PORT):
-        await asyncio.Future()  # run forever    
+    # Configure SSL context if HTTPS is enabled
+    ssl_context = None
+    if config.odd_asr_cfg["enable_https"]:
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_context.load_cert_chain(
+            config.odd_asr_cfg["ssl_cert_path"],
+            config.odd_asr_cfg["ssl_key_path"]
+        )
+    
+    async with serve(_wss_server.handle_client, config.WS_HOST, config.WS_PORT, ssl=ssl_context):
+        await asyncio.Future()  # Run forever
 
 if __name__ == "__main__":
     asyncio.run(start_wss_server())

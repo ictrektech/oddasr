@@ -210,6 +210,8 @@ if __name__ == "__main__":
 
     print(f"Current working directory: {os.getcwd()}")
     print(f"Full file path: {os.path.abspath(file)}")
+    print(f"ASR server url: {server_url}, concurrency={concurrency}")
+    
 
     if not os.path.exists(file):
         print(f"File not found: {file}")

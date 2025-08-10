@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- popper -->
+<script src="common/popper.min.js"></script>
+<script src="common/xlsx.core.min.js"></script>
+<!-- Bootstrap Switch -->
+<script src="plugins/bootstrap/js/bootstrap-switch.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap-table.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap-table-auto-refresh.min.js"></script>
+
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+<!-- Theme style -->
+<link rel="stylesheet" href="dist/css/adminlte.min.css">
+<link rel="stylesheet" href="plugins/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="plugins/bootstrap/css/bootstrap-table.min.css">
+
+<style>
+  .custom-file-input:lang(zh) .custom-file-label::after {
+    content: "浏览";
+  }
+
+  .custom-file-label::after {
+    content: "浏览";
+  }
+
+  .addWordTips{
+    color: #8b8b8b;
+    font-size: 12px;
+  }
+
+  .red{
+     color: #bd2130!important;
+  }
+  .col-md-1 span{
+    font-weight:400;
+  }
+</style>
+
+<body>
+  <div class="card">
+    <!-- /.card-body -->
+    <div class="card-body row">
+      <!--
+          <div class="col-md-1">
+            <label>敏感词开关</label>
+            <div class="col-md-1">
+              <div class="bootstrap-switch bootstrap-switch-wrapper bootstrap-switch-focused bootstrap-switch-animate bootstrap-switch-on" style="width: 90px;">
+                <div class="bootstrap-switch-container" style="width: 132px; margin-left: 0px;">
+                  <span class="bootstrap-switch-handle-on bootstrap-switch-primary" style="width: 44px;">ON</span>
+                  <span class="bootstrap-switch-label" style="width: 44px;">&nbsp;</span>
+                  <span class="bootstrap-switch-handle-off bootstrap-switch-default" style="width: 44px;">OFF</span>
+                  <input type="checkbox" name="my-checkbox" checked="" data-bootstrap-switch="">
+                </div>
+              </div>
+          </div>
+          -->
+      <div class="col-md-1">
+        <button type="button" class="btn btn-block btn-outline-secondary btn-sm"
+          onclick="export_sensitive_template()">下载模板
+        </button>
+      </div>
+      <div class="col-md-1">
+        <label class="btn btn-outline-secondary btn-block btn-sm">
+          <input type="file" style="display: none" id="import_sensitive" accept=".xls, .xlsx" single>
+          <span>导入敏感词</span>
+        </label>
+      </div>
+      <div class="col-md-1">
+        <button type="button" class="btn btn-block btn-outline-secondary btn-sm" onclick="export_sensitive_excel()">
+          导出敏感词
+        </button>
+      </div>
+      <div class="col-md-1">
+        <button type="button" class="btn btn-block btn-outline-secondary btn-sm" data-toggle="modal"
+          data-target="#myModal">添加
+        </button>
+      </div>
+
+         <div class="col-md-1">
+            <button type="button" class="btn btn-block btn-outline-secondary btn-sm" id="batch-delete-btn">
+                删除
+            </button>
+        </div>
+
+      <div class="col-md-6"></div>
+      <div class="col-md-1"></div>
+    </div>
+    <!-- /.card-header -->
+    <!-- /.card-body -->
+    <!-- Main content -->
+    <div class="content">
+      <div class="container-fluid">
+        <div class="card-body table-responsive p-0">
+          <table id="sensitive_table" data-toggle="table" style="table-layout:fixed;word-break:break-all;">
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- 敏感词添加模态框（Modal） -->
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title" id="myModalLabel">
+              添加敏感词
+            </h4>
+          </div>
+          <form>
+            <div class="card-body">
+              <div class="form-group">
+                <label for="add_sensitive_word">敏感词</label>
+                <input type="text" class="form-control" id="add_sensitive_word"
+                   placeholder="输入敏感词">
+                <p class="add_word_tips addWordTips  ">*每个敏感词不超过20个字符，格式仅支持中文、英文</p>
+              </div>
+              <!-- /.card-body -->
+
+              <div class="card-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal" id="closeDialog">关闭</button>
+                <button type="submit" class="btn btn-primary"  id="add-btn" >提交</button>
+              </div>
+            </div>
+          </form>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+
+    <script type="text/javascript">
+      $(function () {
+        window.operateEvents = {
+          'click #rowDel': function (e, value, row, index) {
+            console.log(row)
+            if(confirm('确定要删除敏感词?')){
+              $('#sensitive_table').bootstrapTable('removeByUniqueId', row.id);
+              var data = $('#sensitive_table').bootstrapTable('getData', false);
+              console.log(data);
+              words = get_words_from_data(data);
+              sync_words(words, 'del');
+            }
+
+          }
+        };
+        init();
+      });
+
+
+       function init(){
+          initTable("");
+        }
+
+         function initTable(type) {
+           //先销毁表格
+           $("#sensitive_table").bootstrapTable('destroy');
+
+            $("#sensitive_table").bootstrapTable({
+              method:'get',
+              url:'/sensiwords',
+              reorderableRows: true,
+              striped: true,
+              search: false,
+              toolbar: '#toolbar',
+              useRowAttrFunc: true,
+              uniqueId: 'id',
+              pagination: true,
+              columns: [
+              {
+                field: 'id',
+                title: '编号',
+                width:50
+              },
+              {
+                checkbox: true,
+                width:50
+              },
+              {
+                field: 'word',
+                title: '敏感词',
+                width:200
+              },
+              {
+                field: 'button',
+                title: '操作',
+                width:200,
+                events: operateEvents,
+                formatter: operateFormatter
+              }]
+            });
+         }
+
+         function operateFormatter(value, row, index) {
+            return [
+              '<button type="button" class="btn btn-primary" id="rowDel">删除</button>'
+            ].join('');
+          };
+
+          //批量删除按钮
+          $("#batch-delete-btn").on("click",function(){
+              var array = $('#sensitive_table').bootstrapTable('getSelections');
+              console.log("delete-arr",array)
+
+              if(array.length == 0){
+                  alert("请选择要删除的敏感词");
+                  return;
+              }
+              if(confirm('确定要删除敏感词?')){
+                  for(var i=0;i<array.length;i++){
+                        $('#sensitive_table').bootstrapTable('removeByUniqueId', array[i].id);
+                  }
+
+                  var data = $('#sensitive_table').bootstrapTable('getData', false);
+                  console.log("del-data",data);
+                  words = get_words_from_data(data);
+                  sync_words(words, 'del');
+
+              }
+          })
+
+          function get_words_from_data(rows) {
+            var words = new Array();
+            for (var i = 0; i < rows.length; i++) { //遍历表格的行
+              words[i] = rows[i].word;
+            }
+            return words;
+          }
+
+          function get_words_from_table(rows) {
+            var words = new Array();
+            for (var i = 1; i < rows.length; i++) { //遍历表格的行
+              words[i - 1] = rows[i].cells[1].innerHTML;
+            }
+            return words;
+          }
+
+          function remove_words_from_table(rows, rowid) {
+            var words = new Array();
+            for (var i = 1; i < rows.length; i++) { //遍历表格的行
+              words[i - 1] = rows[i].cells[1].innerHTML;
+            }
+            return words;
+          }
+
+
+           //敏感词add中input输入规则校验
+           $("#add_sensitive_word").keyup(function(event) {
+               var str = $.trim($(this).val());
+               var tips = $(".addWordTips");
+               var err = '';
+               var reg = /[^\a-\z\A-\Z\u4E00-\u9FA5]/g
+               var flag = true;
+
+              if (reg.test(str)) {
+                  err = '*敏感词格式仅支持中文、英文'
+                  tips.text(err).addClass('red');
+
+                  flag = false;
+                  console.log("11111111111111")
+
+              }
+               if (str.length > 20) {
+                  err = '*敏感词长度超过20个字符'
+                  tips.text(err).addClass('red');
+                  flag = false;
+                  console.log("22222222222")
+              }
+
+              console.log("flag",flag)
+              if(flag){
+                console.log("333333333")
+                tips.text("*每个敏感词不超过20个字符，格式仅支持中文、英文").removeClass('red');
+              }
+
+
+          })
+
+
+
+          $("#add-btn").on("click",function(){
+            var isRed = $(".addWordTips").hasClass("red")
+            if(isRed){
+              return  false;
+            }else{
+              add_word();
+            }
+          })
+
+          $("#closeDialog").on("click",function(){
+            $("#add_sensitive_word").val("");
+            $(".addWordTips").removeClass("red")
+          })
+
+
+
+
+
+          function add_word() {
+            let word = $("#add_sensitive_word").val();
+            console.log(word);
+            let add_flag = false;
+            if (typeof (word) == "undefined" || word == '' || word == null) {
+              console.log("empty sensitive word value");
+            } else {
+              var data = $('#sensitive_table').bootstrapTable('getData', false);
+              words = get_words_from_data(data);
+              words[words.length] = word;
+              console.log(words);
+              sync_words(words, 'add');
+            }
+          }
+
+          function sync_words(arr, type) {
+            // 判断敏感词的最大数目
+            if (arr.length > 5000) {
+              alert("Error:敏感词数目不能超过5000个");
+              return;
+            }
+
+            for (var i = 0; i < arr.length; i++) {
+              if (arr[i].length > 20) {
+                alert("Error:存在某个敏感词字符数量大于20");
+                return;
+              }
+            }
+
+            var tr = /^[\u0391-\uFFE5A-Za-z\n]+$/;
+            for (var i = 0; i < arr.length; i++) {
+              if (!tr.test(arr[i])) {
+                alert("Error:敏感词中存在数字或特殊字符！");
+                return;
+              }
+            }
+
+            // 上传敏感词
+            var data = { "unique_id": "test123", "words": arr }
+            $.ajaxSetup({ "xhrFields": true });
+            $.ajax({
+              url: "/web/sensitivewords",
+              data: JSON.stringify(data),
+              contentType: "application/json",
+              type: "post",
+              traditional: true,
+              success: function (j) {
+                if (j['error_code'] == 0) {
+                  initTable();
+                  if (type == 'add') {
+                    alert("敏感词发布成功");
+                  } else if (type == 'del') {
+                    alert("敏感词删除成功");
+                  } else {
+                    alert("敏感词导入成功");
+                  }
+                  window.location.reload();
+                } else {
+                  if (type == 'add') {
+                    alert("敏感词发布失败");
+                  } else if (type == 'del') {
+                    alert("敏感词删除失败");
+                  } else {
+                    alert("敏感词导入失败");
+                  }
+                }
+              }
+            });
+          }
+
+        $('#import_sensitive').change(function(e) {
+          const file_list = event.target.files;
+          console.log(file_list);
+          // 读取excel文件
+          var fileReader = new FileReader()
+          fileReader.onload = function(ev) {
+            try {
+                var data = ev.target.result
+                var workbook = XLSX.read(data, {
+                    type: 'binary'
+                })
+
+                // 存储获取到的数据
+                var old_data = $('#sensitive_table').bootstrapTable('getData', false)
+                words = get_words_from_data(old_data)
+                // 第一页
+                var sheet0 = workbook.Sheets[workbook.SheetNames[0]]
+                var rows = XLSX.utils.sheet_to_json(sheet0, { header: 1 })
+                for (var i = 0; i < rows.length; i++) {
+                  words.push(rows[i][0])
+                }
+                sync_words(words, 'import')
+                document.getElementById('import_sensitive').value = null;
+            } catch (e) {
+                alert('Error:请选择正确的文件')
+                document.getElementById('import_sensitive').value = null;
+                return
+            }
+          }
+          var suffix = file_list[0].name.split(".")[1]
+          if (suffix != 'xls' && suffix != 'xlsx') {
+              alert('Error:请选择正确的文件')
+              return;
+          }
+          // 以二进制方式打开文件
+          fileReader.readAsBinaryString(file_list[0]);
+        });
+
+        function export_sensitive_excel() {
+           // 下载敏感词excel文件
+          var downurl = "/down_sensitive_excel"
+          var element = document.createElement('a');
+          element.href = downurl;
+          element.target = "_blank";
+          element.style.display = 'none';
+          document.body.appendChild(element);
+          element.click();
+          document.body.removeChild(element);
+        }
+
+        function export_sensitive_template() {
+          var element = document.createElement('a');
+          element.href = "/download/敏感词模板.xls";
+          element.target = "_blank";
+          element.style.display = 'none';
+          document.body.appendChild(element);
+          element.click();
+          document.body.removeChild(element);
+        }
+    </script>
+  </div>
+</body>
+
+</html>

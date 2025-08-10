@@ -1,0 +1,104 @@
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap Switch -->
+<script src="plugins/bootstrap/js/bootstrap-switch.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap.min.js"></script>
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+<!-- Theme style -->
+<link rel="stylesheet" href="dist/css/adminlte.min.css">
+<link rel="stylesheet" href="plugins/bootstrap/css/bootstrap.min.css">
+
+<body>
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">敏感词展示与设置</h3>
+          <div class="card-tools">
+            <div class="input-group input-group-sm" style="width: 150px;">
+              <input type="text" name="table_search" class="form-control float-right" placeholder="Search">
+              <div class="input-group-append">
+                <button type="submit" class="btn btn-default">
+                  <i class="fas fa-search"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body table-responsive p-0" style="height: 300px;">
+          <table class="table table-head-fixed text-nowrap">
+            <thead>
+              <tr>
+                <th>id</th>
+                <th>unique_id</th>
+                <th>sensitive_words</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for word in words_list %}
+              <tr>
+                <td id="id">{{word.id}}</td>
+                <td id="unique_id">{{word.unique_id}}</td>
+                <td>
+                  <textarea name="get_sensitive_words" id="get_sensitive_words">{{word.words}}</textarea>
+                </td>
+                <td>
+                  <button type="button" name="set_sensitive_words" onclick="sava_sensitive_words(this);">同步敏感词</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    var x = document.getElementById("get_sensitive_words").value;
+    x = x.split(',')
+    var y = ""
+    if (x.length == 0) {
+      y = ""
+    } else if (x.length == 1) {
+      y = x[0];
+    } else {
+      for (i = 0; i < x.length; i++) {
+        if (i < x.length - 1)
+          y = y + x[i] + "\n"
+        else
+          y = y + x[i]
+      }
+    }
+    $("#get_sensitive_words").val(y);
+
+
+    function sava_sensitive_words() {
+      let unique_id = document.getElementById("unique_id").innerHTML;
+      let res = $("#get_sensitive_words").val();
+      words = res.split("\n");
+      var data = { "unique_id": unique_id, "words": words }
+
+      $.ajaxSetup({ "xhrFields": true });
+      $.ajax({
+        url: "/v1/asr/sensitivewords",
+        data: JSON.stringify(data),
+        contentType: "application/json",
+        type: "post",
+        traditional: true,
+        success: function (j) {
+          if (j["error_code"] == 0) {
+            alert("敏感词同步成功");
+          } else {
+            alert("敏感词同步失败");
+          }
+        }
+      });
+    }
+
+  </script>

@@ -22,7 +22,7 @@ odd_asr_file_set = set()
 
 def init_instance_file():
     global odd_asr_file_set
-    for i in range(config.asr_file_cfg["max_instance"]):
+    for i in range(config.odd_asr_cfg["asr_file_cfg"]["max_instance"]):
         odd_asr_file = OddAsrFile(odd_asr_params_file)
         odd_asr_file_set.add(odd_asr_file)
 
