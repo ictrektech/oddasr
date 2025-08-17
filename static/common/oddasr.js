@@ -408,7 +408,7 @@ class ODDASRCli
                 this.onRecogResult({bgTime:res['begin_time'],
                     edTime:res['time'],
                     fin:1, // res['fin'],
-                    text:res['result']});
+                    text:"[1]" + res['result']});
             }
         }
         else if (j["header"]["name"] == 'TranscriptionResultChanged') {
@@ -417,67 +417,67 @@ class ODDASRCli
                 this.onRecogResult({bgTime:res['begin_time'],
                     edTime:res['time'],
                     fin: 1, // res['fin'],
-                    text:res['result']});
+                    text: "[0]" + res['result']});
             }
         }
 
-        else if(j['msg_type'] == 'START_SESSION_RES')
-        {
-            let code = j['msg_code'];
-            if(code == 0)
-            {  
-                this.state = ASR_CLIENT_SESSION_ESTABLISHED;
-                return this.onStart(CODE.ASR_ERROR_NONE , j['msg_data']['session_id'])
-            }
-            else if(code == EM_MAI_OPENSDK_CREATE_ENGINE_ERROR) 
-            {
-               this.state = ASR_CLIENT_EXCEPTION;
-               this.ws.close();
-               return this.onStart(CODE.ASR_ERROR_ENIGNE , j['msg_desc']);
-            }
-            else if(code == EM_MAI_JDLSERVER_ASR_ID_NOVALID)
-            {
-                this.state = ASR_CLIENT_EXCEPTION;
-                this.ws.close();
-                return this.onStart(CODE.ASR_ID_NO_VALID , j["msg_desc"]);
-            }
-            else{
-                this.state = ASR_CLIENT_EXCEPTION;
-                this.ws.close();
-                return this.onStart(CODE.ASR_ERROR_INTER , j['msg_desc']);
-            }
-        }
-        else if(j['msg_type'] == 'RECOGNITION_TEXT')
-        {
-            const res = j['msg_data'];
-            this.onRecogResult({bgTime:res['bgTime'],
-                edTime:res['edTime'],
-                fin:res['fin'],
-                text:res['text']});
-        }
-        else if(j['msg_type'] == 'STOP_SESSION_RES')
-        {
-           this.state = ASR_CLIENT_SESSION_STOPED;
-           this.ws.close();
-           return this.onStop(CODE.ASR_ERROR_NONE); 
-        }
-        else if(j['msg_type'] == 'EXCEPTION_NTF')
-        {
-            this.state = ASR_CLIENT_EXCEPTION;
-            this.ws.close();
-            return this.onError(CODE.ASR_ERROR_INTER , j['msg_desc']);
-        }
-        else if(j['msg_type'] == 'SESSION_CTRL_RES')
-        {
-            let code = j['msg_code'];
-            if(code == 0)
-                this.onCtrl(CODE.ASR_ERROR_NONE , j['msg_id'])
-            else
-                this.onCtrl(CODE.ASR_ERROR_INTER , j['msg_id'])
-        }
+        // else if(j['msg_type'] == 'START_SESSION_RES')
+        // {
+        //     let code = j['msg_code'];
+        //     if(code == 0)
+        //     {  
+        //         this.state = ASR_CLIENT_SESSION_ESTABLISHED;
+        //         return this.onStart(CODE.ASR_ERROR_NONE , j['msg_data']['session_id'])
+        //     }
+        //     else if(code == EM_MAI_OPENSDK_CREATE_ENGINE_ERROR) 
+        //     {
+        //        this.state = ASR_CLIENT_EXCEPTION;
+        //        this.ws.close();
+        //        return this.onStart(CODE.ASR_ERROR_ENIGNE , j['msg_desc']);
+        //     }
+        //     else if(code == EM_MAI_JDLSERVER_ASR_ID_NOVALID)
+        //     {
+        //         this.state = ASR_CLIENT_EXCEPTION;
+        //         this.ws.close();
+        //         return this.onStart(CODE.ASR_ID_NO_VALID , j["msg_desc"]);
+        //     }
+        //     else{
+        //         this.state = ASR_CLIENT_EXCEPTION;
+        //         this.ws.close();
+        //         return this.onStart(CODE.ASR_ERROR_INTER , j['msg_desc']);
+        //     }
+        // }
+        // else if(j['msg_type'] == 'RECOGNITION_TEXT')
+        // {
+        //     const res = j['msg_data'];
+        //     this.onRecogResult({bgTime:res['bgTime'],
+        //         edTime:res['edTime'],
+        //         fin:res['fin'],
+        //         text:res['text']});
+        // }
+        // else if(j['msg_type'] == 'STOP_SESSION_RES')
+        // {
+        //    this.state = ASR_CLIENT_SESSION_STOPED;
+        //    this.ws.close();
+        //    return this.onStop(CODE.ASR_ERROR_NONE); 
+        // }
+        // else if(j['msg_type'] == 'EXCEPTION_NTF')
+        // {
+        //     this.state = ASR_CLIENT_EXCEPTION;
+        //     this.ws.close();
+        //     return this.onError(CODE.ASR_ERROR_INTER , j['msg_desc']);
+        // }
+        // else if(j['msg_type'] == 'SESSION_CTRL_RES')
+        // {
+        //     let code = j['msg_code'];
+        //     if(code == 0)
+        //         this.onCtrl(CODE.ASR_ERROR_NONE , j['msg_id'])
+        //     else
+        //         this.onCtrl(CODE.ASR_ERROR_INTER , j['msg_id'])
+        // }
     }
     onError1(e){
-        oddasr_log('ODDASRCli.onError')
+        oddasr_log('ODDASRCli.onError');
         this.state = ASR_CLIENT_CLOSED;
         this.onStart(CODE.ASR_ERROR_NET , null);
         this.ws = null;

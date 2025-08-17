@@ -131,7 +131,7 @@ class OddWssServer:
                             logger.debug(f"found free odd_asr_stream, task_id={task_id}")
                             self._sessionid_set.add(task_id)
                     else:
-                        logger.debug(f"found existing odd_asr_stream, task_id={task_id}, websocket={odd_asr_stream.get_websocket()}:{websocket}")
+                        logger.info(f"found existing odd_asr_stream, task_id={task_id}, websocket={odd_asr_stream.get_websocket()}:{websocket}")
 
                     self._clients_set.add(websocket)
                     self._conn_sessionid[websocket] = task_id

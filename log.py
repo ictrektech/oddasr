@@ -33,15 +33,14 @@ def _logging():
     if config.Debug:
         enableProtoPrint = False
         if enableProtoPrint:
-            logging.basicConfig(level=logging.DEBUG,
-                                format=FORMAT,
-                                datefmt=DATE)
+            logging.basicConfig(level=logging.DEBUG, format=FORMAT, datefmt=DATE)
         else:
             ch = logging.StreamHandler()
             ch.setFormatter(format)
             log.addHandler(ch)
 
-    log.setLevel(logging.INFO)
+    log.setLevel(config.log_level)
+    
     return log
 
 

@@ -21,7 +21,15 @@ odd_asr_cfg = {
     ## concurrent threads, 0 auto detect CPU cores
     "concurrent_thread": 0,
     ## asr stream config
-    "asr_stream_cfg": { 'max_instance': 1 },
+    "asr_stream_cfg": {
+        'max_instance': 1, 
+        'punct_mini_len': 10, 
+        'save_audio': True ,
+        'vad_threshold': 0.8,               # vad_threshold
+        'vad_min_speech_duration': 300,     # vad_min_speech_duration(ms)
+        'vad_min_silence_duration': 200     # vad_min_silence_duration(ms)
+        },
+
     ## asr file config
     "asr_file_cfg": { 'max_instance':0 },
     ## HTTPS configuration

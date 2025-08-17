@@ -11,12 +11,14 @@
 import queue
 import asyncio
 from funasr import AutoModel
+import threading
 
 from log import logger
 import proto
 
 # 创建一个线程安全的优先级队列
 asr_result_queue = queue.SimpleQueue()
+asr_result_queue_lock = threading.Lock()
 
 class Result:
     def __init__(self):
@@ -50,12 +52,12 @@ def from_data(data):
 
 
 class OddAsrStreamResult:
-    res = proto.TOddAsrTranscribeRes()
     # punc_model: AutoModel = None
 
     def __init__(self, punc_model, webocket, text, index=0, begin_time=0, is_final=False, is_last=False):
         self.punc_model = punc_model
         self.webocket = webocket
+        self.res = proto.TOddAsrTranscribeRes()
         
         if is_final:
             self.res.header.name = "SentenceEnd"
@@ -67,12 +69,13 @@ class OddAsrStreamResult:
         self.res.payload.result = text
         self.res.payload.begin_time = begin_time
         self.res.payload.index = index
+        self.res.payload.fin = 1 if is_last else 0
 
 def enque_asr_result(message: OddAsrStreamResult):
     global asr_result_queue
     asr_result_queue.put(message)
     
-    logger.debug(f"asr result queue size={asr_result_queue.qsize()}")
+    logger.info(f"asr result queue size={asr_result_queue.qsize()}")
 
 async def notify_task(_wss_server=None):
     global asr_result_queue

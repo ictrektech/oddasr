@@ -132,7 +132,7 @@ class OddAsrStream:
             self.device = "cpu"
 
         if config.odd_asr_cfg["preload_model"]:
-            self.load_stream_model(self.device)
+            self._load_stream_model(self.device)
 
         self.lock = threading.Lock()  # 初始化锁
 
@@ -167,14 +167,14 @@ class OddAsrStream:
         with self.lock:  # 使用锁保护共享资源
             return self.streamParam.task_id
 
-    def load_stream_model(self, device="cuda:0"):
+    def _load_stream_model(self, device="cuda:0"):
         # load stream model
         if not self.stream_model:
             self.stream_model = AutoModel(
                 model="paraformer-zh-streaming", model_revision="v2.0.4",
 
                 # vad_model='iic/speech_fsmn_vad_zh-cn-16k-common-pytorch', vad_model_revision="v2.0.4",
-                # vad_model="fsmn-vad", vad_model_revision="v2.0.4",
+                vad_model="fsmn-vad", vad_model_revision="v2.0.4",
 
                 # punc_model='iic/punc_ct-transformer_cn-en-common-vocab471067-large', punc_model_revision="v2.0.4",
                 # punc_model='iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-large', punc_model_revision="v2.0.4",
@@ -188,6 +188,26 @@ class OddAsrStream:
             )
 
         if not self.punc_model:
+            '''
+            from modelscope.pipelines import pipeline
+            from modelscope.utils.constant import Tasks
+
+            inference_pipeline = pipeline(
+                task=Tasks.punctuation,
+                model='damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727'
+            )
+
+            inputs = "跨境河流是养育沿岸|人民的生命之源长期以来为帮助下游地区防灾减灾中方技术人员|在上游地区极为恶劣的自然条件下克服巨大困难甚至冒着生命危险|向印方提供汛期水文资料处理紧急事件中方重视印方在跨境河流问题上的关切|愿意进一步完善双方联合工作机制|凡是|中方能做的我们|都会去做而且会做得更好我请印度朋友们放心中国在上游的|任何开发利用都会经过科学|规划和论证兼顾上下游的利益"
+            vads = inputs.split("|")
+            rec_result_all="outputs:"
+            param_dict = {"cache": []}
+            for vad in vads:
+                rec_result = inference_pipeline(text_in=vad, param_dict=param_dict)
+                rec_result_all += rec_result['text']
+
+            print(rec_result_all)            
+            '''
+
             self.punc_model = AutoModel(
                 # model='iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-large', punc_model_revision="v2.0.4",
                 model="iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727", model_revision="v2.0.4",
@@ -227,7 +247,7 @@ class OddAsrStream:
                 logger.error(f"_stop_event is None")
                 return ""
             if self.stream_model is None:
-                self.load_stream_model()
+                self._load_stream_model()
 
             # Create and start the transcription thread
             if self.streamParam._transcription_thread is None or not self.streamParam._transcription_thread.is_alive():
@@ -240,9 +260,8 @@ class OddAsrStream:
 
                 self.streamParam._transcription_thread.start()
                 self.streamParam._stats.start_time = time.time()
-
-            else:
-                logger.info(f"transcription_thread is running, websocket={socket}, task_id={task_id}")
+            # else:
+            #     logger.info(f"transcription_thread is running, websocket={socket}, task_id={task_id}")
 
             # DONT terminite the thread, just add an empty audio_frame to queue, let the previous frames to be processed
             if audio_frame is None:  # Receive EOF signal
@@ -256,6 +275,10 @@ class OddAsrStream:
                 frame = AudioFrame(data=None)
                 self.streamParam._audio_queue.put(frame)
             else:
+                if type(audio_frame) is not bytes:
+                    logger.error(f"audio_frame is not bytes, type={type(audio_frame)}")
+                    return ""
+
                 # Convert bytes to a NumPy array of int16
                 pcm_array = np.frombuffer(audio_frame, dtype=np.int16)
                 # Convert the array to float32 and normalize it
@@ -299,12 +322,11 @@ class OddAsrStream:
                 self.streamParam._transcription_thread = None
             raise RuntimeError(f"Error processing audio stream: {e}")
 
-
     def _save_audio_rec(self, filename, audio_data, sample_rate=16000):
         try:
-            # # 保存文件
-            # if not os.path.exists(os.path.dirname(filename)):
-            #     os.makedirs(os.path.dirname(filename))
+            # 保存文件
+            if not os.path.exists(os.path.dirname(filename)):
+                os.makedirs(os.path.dirname(filename))
 
             # 确保 audio_data 是 NumPy 数组
             if not isinstance(audio_data, np.ndarray):
@@ -334,6 +356,7 @@ class OddAsrStream:
         # decoder_chunk_look_back = 1 #number of encoder chunks to lookback for decoder cross-attention
         is_final = False
         cache = {}
+        punc_cache = []
         hotwords = ""
 
         tasks = []  # 用于存储所有异步任务
@@ -343,25 +366,30 @@ class OddAsrStream:
 
         try:
             while not self.streamParam._stop_event.is_set():
-                # read from queue, timeout 1 second
+                # STEP 1. read from queue, timeout 1 second
                 try:
                     frame: AudioFrame = self.streamParam._audio_queue.get(timeout=1)
-                    logger.info(f"queue length: {self.streamParam._audio_queue.qsize()},websocket={self.streamParam._websocket}")
+                    logger.debug(f"queue length: {self.streamParam._audio_queue.qsize()},websocket={self.streamParam._websocket}")
                 except queue.Empty:  # sleep 100ms if read timeout
                     time.sleep(0.1)
                     continue
 
-                if frame.data is None:  # 收到 EOF 信号
+                if frame.data is None:  # EOF received
                     logger.warn(f"Received EOF signal, stopping transcription thread.")
                     is_final = True
                     # break
 
-                # save the pcm to a record file
-                if self.streamParam._rec_file != "":
+                # STEP 2. save the pcm to a record file
+                if config.odd_asr_cfg["asr_stream_cfg"]["save_audio"]:
+                    if self.streamParam._rec_file == "":
+                        self.streamParam._rec_file = "tmp/" + self.streamParam.task_id + ".pcm"
+                    logger.debug(f"save audio frame to {self.streamParam._rec_file}, sr={frame.sr}, len={len(frame.data)}")
                     self._save_audio_rec(self.streamParam._rec_file, frame.data, frame.sr)
 
                 speech = frame.data
+                websocket = self.streamParam._websocket
 
+                # STEP 3. Spit the audio to chunks, each chunk should match the chunk_size initialized in streamParam 
                 chunk_stride = self.streamParam._chunk_size[1] * 960 # 600ms
                 total_chunk_num = int(len(speech)/chunk_stride)
                 logger.info(f"Processing frame, stride: {chunk_stride}, data={len(speech)}, total_chunk_num={total_chunk_num}, is_final={is_final}")
@@ -373,6 +401,14 @@ class OddAsrStream:
 
                     logger.info(f"start={start}, end={end}, audio_chunk type: {type(audio_chunk)}, audio_chunk shape: {audio_chunk.shape}")
 
+                    # STEP 3.1 VAD
+                    vad_result = self.stream_model.vad(audio_chunk)
+                    if not vad_result.is_speech:
+                        logger.debug(f"No speech detected in chunk {i}, skipping...")
+                        continue
+                    logger.info(f"VAD result: {vad_result}")
+
+                    # STEP 4. Transcribe the audio chunk
                     try:
                         text = self.stream_model.generate(input=audio_chunk, 
                                                             input_len=len(audio_chunk), 
@@ -390,16 +426,28 @@ class OddAsrStream:
 
                         self.streamParam._stats.total_audio_input_len += len(audio_chunk)
                         self.streamParam._stats.start_time = self.streamParam._stats.total_audio_input_len*1000/256000
-                        logger.info(f"res={text}, websocket={self.streamParam._websocket}, total input={self.streamParam._stats.total_audio_input_len}, start_time={self.streamParam._stats.start_time}")
-                        websocket = self.streamParam._websocket
+                        logger.info(f"res={text}, websocket={websocket}, total input={self.streamParam._stats.total_audio_input_len}, start_time={self.streamParam._stats.start_time}")
 
                         # skip the empty text
                         if text[0]["text"] == "":
                             continue
-
                         self.streamParam._text_cache += text[0]["text"]
 
-                        punc_result = self.punc_model.generate(input=self.streamParam._text_cache)
+                        # dont input punc model if current length is less than the configuration value
+                        # TODO time is also an important factor
+                        if len(self.streamParam._text_cache) < config.odd_asr_cfg["asr_stream_cfg"]["punct_mini_len"]:
+                            result = OddAsrStreamResult(self.punc_model, websocket, self.streamParam._text_cache, is_final=False, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time)
+                            enque_asr_result(result)
+                            continue
+
+                    except Exception as e:
+                        logger.error(f"Error in transcribe_stream: {e}")
+                        continue
+
+                    # STEP 5. Generate the punctuations
+                    try:
+                        input_text = self.streamParam._text_cache
+
                         '''
                         [
                             {
@@ -409,40 +457,59 @@ class OddAsrStream:
                             }
                         ]
                         '''
+                        punc_result = self.punc_model.generate(input=input_text, punc_threshold=0.5)
+                        logger.info(f"punctuation: \n\tinput={input_text}\n\tpunc_result={punc_result}")
                         punc_result_text = punc_result[0]['text']
-                        logger.info(f"punctuation: \n\tinput={self.streamParam._text_cache}\n\toutput={punc_result_text}")
 
-                        # 查找所有标点符号位置
+                        # find the specified punctuations in the punc_result
                         punct_pattern = re.compile(r'[。？！]')
                         matches = list(punct_pattern.finditer(punc_result_text))
+
                         if matches:
-                            # 获取最后一个标点符号位置
+                            # locate the last punctuation
                             last_match = matches[-1]
                             split_pos = last_match.end()
                             current_text = punc_result_text[:split_pos]
                             remaining_text = punc_result_text[split_pos:]
-                            
-                            logger.info(f"split_pos={split_pos}, current_text={current_text}, remaining_text={remaining_text}")
 
-                            # 更新缓存中的文本
-                            self.streamParam._text_cache = remaining_text
+                            # remove punctuations from the remaining text
+                            remaining_text2 = re.sub(r'[。？！，；：“”‘’（）【】{}、,;:"\'()\[\]{}]', '', remaining_text)
+
+                            logger.info(f"split_pos={split_pos}, current_text={current_text}, remaining_text={remaining_text}, remaining_text2={remaining_text2}")
+
+                            # # there could be multiple punctuations in the last chunk
+                            # # we need to split the text into multiple chunks
+                            # # split the text into multiple chunks
+                            # while split_pos < len(punc_result_text):
+                            #     current_text = punc_result_text[:split_pos]
+                            #     remaining_text = punc_result_text[split_pos:]
+                            #     logger.info(f"split_pos={split_pos}, current_text={current_text}, remaining_text={remaining_text}")
+                            #     # update the text cache
+                            #     self.streamParam._text_cache = remaining_text
+
+                            # update the text cache
+                            self.streamParam._text_cache = remaining_text2
 
                             if websocket is not None:
-                                if len(remaining_text) > 1:
-                                    result = OddAsrStreamResult(self.punc_model, websocket, current_text, is_final=True, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time)
-                                    enque_asr_result(result)
-                                if not self.streamParam._text_cache == "":
-                                    result = OddAsrStreamResult(self.punc_model, websocket, self.streamParam._text_cache, is_final=False, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time)
-                                    enque_asr_result(result)
+                                if len(current_text) > 1:
+                                    result1 = OddAsrStreamResult(self.punc_model, websocket, current_text, is_final=True, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time)
+                                    logger.info(f"result1={result1}")
+
+                                    enque_asr_result(result1)
+                                if not remaining_text2 == "":
+                                    result2 = OddAsrStreamResult(self.punc_model, websocket, remaining_text2, is_final=False, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time)
+                                    logger.info(f"result2={result2}")
+
+                                    enque_asr_result(result2)
 
                         else:
                             # 没有找到标点符号，添加到缓存并继续
-                            self.streamParam._text_cache = punc_result_text
+                            # self.streamParam._text_cache = punc_result_text
                             result = OddAsrStreamResult(self.punc_model, websocket, self.streamParam._text_cache, is_final=False, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time)
                             enque_asr_result(result)
 
                     except Exception as e:
-                        logger.error(f"Error processing audio chunk: {e}")
+                        logger.error(f"Error in punctuation process: {e}")
                         continue
 
                 # feed the remaining data to the model
@@ -469,8 +536,7 @@ class OddAsrStream:
 
                         self.streamParam._stats.total_audio_input_len += len(audio_chunk)
                         self.streamParam._stats.start_time = self.streamParam._stats.total_audio_input_len*1000/256000
-                        logger.info(f"res={text}, websocket={self.streamParam._websocket}, total input={self.streamParam._stats.total_audio_input_len}, start_time={self.streamParam._stats.start_time}")
-                        websocket = self.streamParam._websocket
+                        logger.info(f"res={text}, websocket={websocket}, total input={self.streamParam._stats.total_audio_input_len}, start_time={self.streamParam._stats.start_time}")
                         if websocket is not None:
                             result = OddAsrStreamResult(self.punc_model, websocket, text, index=self.streamParam._stats.index, begin_time=self.streamParam._stats.start_time, is_final=is_final)
 
@@ -483,10 +549,8 @@ class OddAsrStream:
 
             logger.info(f"Transcription thread stopped.")
 
-            websocket = self.streamParam._websocket
             if websocket is not None:
                 result = OddAsrStreamResult(self.punc_model, websocket, "END", is_final=True, is_last=True)
-
                 enque_asr_result(result)
 
             if tasks:
@@ -497,5 +561,3 @@ class OddAsrStream:
         finally:
             logger.info(f"Transcription thread stopped.")
             loop.close()
-
-
