@@ -1,0 +1,215 @@
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap Switch -->
+<script src="plugins/bootstrap/js/bootstrap-switch.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap.min.js"></script>
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+<!-- Theme style -->
+<link rel="stylesheet" href="dist/css/adminlte.min.css">
+<link rel="stylesheet" href="plugins/bootstrap/css/bootstrap.min.css">
+
+<style>
+  .custom-file-input:lang(zh) .custom-file-label::after {
+    content: "浏览";
+  }
+
+  .custom-file-label::after {
+    content: "浏览";
+  }
+</style>
+
+<body>
+  <div class="card">
+    <!-- /.card-body -->
+    <div class="card-body row">
+      <!--
+          <div class="col-md-1">
+            <label>敏感词开关</label>
+
+          <div class="col-md-1">
+            <div class="bootstrap-switch bootstrap-switch-wrapper bootstrap-switch-focused bootstrap-switch-animate bootstrap-switch-on" style="width: 90px;">
+              <div class="bootstrap-switch-container" style="width: 132px; margin-left: 0px;">
+                <span class="bootstrap-switch-handle-on bootstrap-switch-primary" style="width: 44px;">ON</span>
+                <span class="bootstrap-switch-label" style="width: 44px;">&nbsp;</span>
+                <span class="bootstrap-switch-handle-off bootstrap-switch-default" style="width: 44px;">OFF</span>
+                <input type="checkbox" name="my-checkbox" checked="" data-bootstrap-switch="">
+              </div>
+            </div>
+          </div>
+          -->
+      <div class="col-md-1">
+        <button type="button" class="btn btn-block btn-outline-secondary btn-sm">下载模板</button>
+      </div>
+      <div class="col-md-1">
+        <label class="btn btn-outline-secondary btn-block btn-sm">
+          <input type="file" style="display: none" id="import_hot" onchange="import_function(this,'import_hot', 'hot')">
+          <span>导入热词</span>
+        </label>
+      </div>
+      <div class="col-md-1">
+        <button type="button" class="btn btn-block btn-outline-secondary btn-sm" data-toggle="modal"
+          data-target="#myModal">添加
+        </button>
+      </div>
+      <div class="col-md-1">
+        <button type="button" class="btn btn-block btn-outline-secondary btn-sm" onclick="deleteSelects()">删除
+        </button>
+      </div>
+      <div class="col-md-6"></div>
+      <div class="col-md-2">
+        <div class="input-group input-group-sm">
+          <input type="text" name="table_search" class="form-control float-right" placeholder="请输入敏感词">
+
+          <div class="input-group-append">
+            <button type="submit" class="btn btn-default">
+              <i class="fas fa-search"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- /.card-header -->
+    <!-- /.card-body -->
+    <!-- Main content -->
+    <div class="content">
+      <div class="container-fluid">
+        <div class="card-body table-responsive p-0">
+          <table id="hot_table" class="table table-hover text-nowrap">
+            <thead>
+              <tr>
+                <th>序号</th>
+                <th>热词</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {%for word in words%}
+              <tr>
+                <td>
+                  <div class="icheck-primary d-inline ml-2">
+                    <input type="checkbox" value="" name="todo3" id="todoCheck3">
+                    <label for="todoCheck3"></label>
+                  </div>
+                  {{word.id}}
+                </td>
+                <td> {{word.word}}</td>
+                <td>
+                  <a class="delete" title="" data-toggle="tooltip" data-original-title="Delete"><i
+                      class="material-icons">删除</i></a>
+                </td>
+              </tr>
+              {%endfor%}
+
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- /.container-fluid -->
+      <div class="card-footer clearfix">
+        <ul class="pagination pagination-sm m-0 float-right">
+          <li class="page-item"><a class="page-link" href="#">«</a></li>
+          <li class="page-item"><a class="page-link" href="#">1</a></li>
+          <li class="page-item"><a class="page-link" href="#">2</a></li>
+          <li class="page-item"><a class="page-link" href="#">3</a></li>
+          <li class="page-item"><a class="page-link" href="#">»</a></li>
+        </ul>
+      </div>
+    </div>
+    <!-- /.content -->
+
+    <!-- 热词添加模态框（Modal） -->
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title" id="myModalLabel">
+              添加热词
+            </h4>
+          </div>
+          <form>
+            <div class="card-body">
+              <div class="form-group">
+                <label for="add_hot_word">热词</label>
+                <input type="text" class="form-control" id="add_hot_word"
+                  onkeyup="value=value.replace(/[^\u4E00-\u9FA5]/g,'')" placeholder="输入热词">
+              </div>
+              <!-- /.card-body -->
+
+              <div class="card-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal">关闭</button>
+                <button type="submit" class="btn btn-primary" onclick="add_word()">提交</button>
+              </div>
+            </div>
+          </form>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+
+    <script>
+      function add_word() {
+        let word = $("#add_hot_word").val();
+        console.log(word);
+        let add_flag = false;
+        if (typeof (word) == "undefined" || word == '' || word == null) {
+          console.log("empty hot word value");
+        }
+        else {
+          var tab = document.getElementById("hot_table");
+          var rows = tab.rows;
+          var words = new Array();
+          for (var i = 1; i < rows.length; i++) { //遍历表格的行
+            words[i - 1] = rows[i].cells[1].innerHTML;
+          }
+          words[words.length] = word;
+          console.log(words);
+          sync_words(words);
+        }
+
+      }
+
+      function sync_words(arr) {
+        var data = { "words": arr }
+        $.ajaxSetup({ "xhrFields": true });
+        $.ajax({
+          url: "/asr/hotwords",
+          data: JSON.stringify(data),
+          contentType: "application/json",
+          type: "post",
+          traditional: true,
+          success: function (j) {
+            if (j['code'] == 0) {
+              alert("热词发布成功");
+            }
+            else
+              alert("热词发布失败");
+          }
+        });
+      }
+
+      function import_function(dom, id, type) {
+        var file = document.getElementById(id).files[0];
+        var reader = new FileReader();                  //这是核心,读取操作就是由它完成.
+        reader.readAsText(file);                        //读取文件的内容,也可以读取文件的URL
+        reader.onload = function () {                   //当读取完成后回调这个函数,然后此时文件的内容存储到了result中,直接操作即可
+          //TODO:words check.
+          words = this.result.split('\n');
+          console.log(words);
+          //for(var i =0;i<words.length;i++)
+          //add_word(words[i])
+          sync_words(words);
+        }
+
+      }
+
+      function deleteSelects() {
+        var obj = $('#hot_table');
+        var ids = $.map(obj.bootstrapTable('getSelections'), function (row) {
+          return row.Id
+        });
+
+        obj.bootstrapTable('remove', { field: 'Id', values: ids });
+
+      }
+    </script>
+  </div>

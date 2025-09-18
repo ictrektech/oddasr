@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login to OddAsr SLP service</title>
+  <link rel="shortcut icon" href="./images/favicon.ico" />
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="dist/css/adminlte.min.css">
+</head>
+<body  >
+  <div class="hold-transition login-page" style="height: 92vh;">
+  <div class="login-box" >
+  <!-- /.login-logo -->
+  <div class="card card-outline card-primary" >
+    <div class="card-header text-center">
+      <span class="h4"> OddAsr SLP service</span>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-warning alert-dismissible" id = "tips_show" style="display: none;">
+        
+        <div id="tips_content">
+          warnning
+        </div>
+        
+      </div>
+      <form  >
+        <div class="input-group mb-3">
+          <input type="text" id="user" class="form-control" placeholder="user name">
+          <div class="input-group-append">
+            <div class="input-group-text">
+              <span class="fas fa-user"></span>
+            </div>
+          </div>
+        </div>
+        <div class="input-group mb-3">
+          <input type="password" id="pwd" class="form-control" placeholder="password">
+          <div class="input-group-append">
+            <div class="input-group-text">
+              <span class="fas fa-lock"></span>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+       
+          <!-- /.col -->
+          <div class="col-12">
+            <button type="button" class="btn btn-primary btn-block" onclick="login()">Login</button>
+          </div>
+          <!-- /.col -->
+        </div>
+      </form>
+
+    </div>
+    <!-- /.card-body -->
+  </div>
+  <!-- /.card -->
+</div>
+<!-- /.login-box -->
+</div>
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<!-- AdminLTE App -->
+<script src="dist/js/adminlte.min.js"></script>
+
+
+
+<footer class="main-footer">
+  OddAsr SLP service <strong>  Copyright &copy; 2025-<span class="version_year"></span> OddMeta.</strong> All rights reserved.
+</footer>
+
+<script>
+  $(function () {
+    var myDate = new Date();
+    var tYear = myDate.getFullYear();
+    console.log("tYear", tYear);
+    $(".version_year").html(tYear);
+
+    // press enter to login
+    $("#user, #pwd").keypress(function(event) {
+      if (event.keyCode === 13) {
+        login();
+      }
+    });
+  });
+
+  function tips(msg) {
+      $("#tips_show").css('display','')
+      $("#tips_content").html(msg)
+      $("#pwd").val('')
+  }
+
+  function login() {
+    //check
+    let user=$("#user").val();
+    let pwd=$("#pwd").val();
+    if(user == "" || pwd == "") {
+      tips('Username and password can not be empty!');
+      return;
+    }
+
+    //then validate from server.
+    $.ajaxSetup({"xhrFields" :true});
+    $.ajax({url:"/login",
+      data:JSON.stringify({'user':user , 'pwd':pwd}),
+      contentType : "application/json",
+      type:"Post",
+      success:function(j) {
+        if(j['code'] == 0)
+          location.href =  '/'
+        else
+          tips('Invalid username or password!')
+        }
+    });
+  }
+
+</script>
+
+</body>
+</html>

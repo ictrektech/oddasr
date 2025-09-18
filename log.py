@@ -18,10 +18,11 @@ def _logging():
     DATE = '%Y-%m-%d %H:%M:%S'
 
     format = logging.Formatter(FORMAT, DATE)
+    logfile = config.log_path + config.log_file
+    
+    log = logging.getLogger(logfile)
 
-    log = logging.getLogger(config.log_path + config.log_file)
-
-    th = handlers.TimedRotatingFileHandler(filename=config.log_path, when='MIDNIGHT', backupCount=10, encoding='utf-8')
+    th = handlers.TimedRotatingFileHandler(filename=logfile, when='MIDNIGHT', backupCount=10, encoding='utf-8')
     th.setFormatter(format)
     log.addHandler(th)
 
@@ -32,15 +33,14 @@ def _logging():
     if config.Debug:
         enableProtoPrint = False
         if enableProtoPrint:
-            logging.basicConfig(level=logging.DEBUG,
-                                format=FORMAT,
-                                datefmt=DATE)
+            logging.basicConfig(level=logging.DEBUG, format=FORMAT, datefmt=DATE)
         else:
             ch = logging.StreamHandler()
             ch.setFormatter(format)
             log.addHandler(ch)
 
-    log.setLevel(logging.DEBUG)
+    log.setLevel(config.log_level)
+    
     return log
 
 

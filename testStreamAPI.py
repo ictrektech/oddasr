@@ -11,19 +11,10 @@
 
 '''
     client --> server: connect
-    client --> server: TCmdApppyAsrReq, msg_type = MSG_APPLY_ASR_REQ;
+    client --> server: TCmdApppyAsrReq, msg_type = StartTranscription;
     server --> client: TCmdApplyAsrRes, msg_type = MSG_SUBSCRIBE_INIT_RES;
     client --> server: TCMDTranscribeReq, msg_type = MSG_TRANSCRIBE_REQ;
     server --> client: TCMDTranscribeRes, msg_type = MSG_TRANSCRIBE_RES;
-
-    struct TCmdApppyAsrReq
-    {
-        std::string msg_type = MSG_APPLY_ASR_REQ;
-        std::string msg_id;
-        std::string token;
-        std::string session_id;	//重连的时候带
-    };
-
 
     TCMDTranscribeReq
 
@@ -38,6 +29,7 @@ import enum
 from websockets.asyncio.client import connect
 from log import logger
 import odd_asr_config as config
+import proto
 
 class odd_asr_state(enum.Enum):
     EM_ASR_STATE_IDLE = 0,
@@ -58,6 +50,8 @@ class OddWsClient:
         self.timestamp_first_text = 0
         self.timestamp_last_packet = 0
         self.timestamp_last_text = 0
+        self.timestamp_sentence_begin = 0
+        self.timestamp_sentence_end = 0
 
 ws_client_set = set()
 
@@ -72,7 +66,7 @@ async def receive_messages(websocket):
         try:
             # 接收服务端消息
             message = await websocket.recv()
-            logger.debug(f"<<< {message}")
+            # logger.debug(f"<<< {message}")
 
             odd_ws_client: OddWsClient = None
             for client in ws_client_set:
@@ -83,13 +77,17 @@ async def receive_messages(websocket):
                 case odd_asr_state.EM_ASR_STATE_IDLE:
                     continue
                 case odd_asr_state.EM_ASR_STATE_APPLYING:
-                    res = json.loads(message)
-                    logger.debug(f"<<< {res}")
-                    if res["msg_type"] == "MSG_APPLY_ASR_RES":
-                        if res["error_code"] == 0:
+                    response = json.loads(message)
+                    logger.debug(f"<<< {response}")
+                    res = proto.TOddAsrApplyRes()
+                    res = proto.obj_from_dict_recursive(res, response)
+                    if res.header.name == "SentenceBegin":
+                        if res.header.status == 0:
                             odd_ws_client.state = odd_asr_state.EM_ASR_STATE_APLLY_OK
                             logger.info("client doInit ok")
                             odd_ws_client.state = odd_asr_state.EM_ASR_STATE_RECOGNIZING
+                            odd_ws_client.timestamp_first_text = time.time()
+                            odd_ws_client.timestamp_sentence_begin = res.payload.time
                         else:
                             odd_ws_client.state = odd_asr_state.EM_ASR_STATE_APPLY_FAILED
                     odd_ws_client.timestamp_apply = time.time()
@@ -99,8 +97,20 @@ async def receive_messages(websocket):
                 case odd_asr_state.EM_ASR_STATE_APPLY_FAILED:
                     continue
                 case odd_asr_state.EM_ASR_STATE_RECOGNIZING:
-                    res = json.loads(message)
-                    logger.debug(f"<<< {res}")
+                    response = json.loads(message)
+                    logger.debug(f"<<< {response}")
+                    res = proto.TOddAsrTranscribeRes()
+                    res = proto.obj_from_dict_recursive(res, response)
+                    if res.header.name == "SentenceEnd":
+                        odd_ws_client.timestamp_sentence_end = time.time()
+                    elif res.header.name == "SentenceBegin":
+                        odd_ws_client.timestamp_sentence_begin = res.payload.time
+                    elif res.header.name == "TranscriptionResultChanged":
+                        odd_ws_client.timestamp_last_packet = time.time()
+                    elif res.header.name == "TranscriptionCompleted":
+                        odd_ws_client.timestamp_last_text = time.time()
+                    else:
+                        logger.error(f"unknown message type={res.header.name}")
                 case _:
                     continue
 
@@ -131,11 +141,14 @@ async def send_messages(websocket, file):
         await asyncio.sleep(0.1)
         match odd_ws_client.state:
             case odd_asr_state.EM_ASR_STATE_IDLE:
-                req = {"msg_type": "MSG_APPLY_ASR_REQ", "msg_id": "", "token": "", "session_id": ""}
-                logger.debug(f">>>client doInit req: {req}")
+                req = proto.TOddAsrApplyReq()
+                req = {"name": "StartTranscription", "message_id": "", "token": "", "task_id": ""}
+
+                str = proto.obj_to_dict_recursive(req)
+                logger.debug(f">>>client doInit req: {str}")
 
                 await websocket.send(json.dumps(req))
-                logger.debug(">>>client doInit req sent, timestamp_apply={odd_ws_client.timestamp_apply}")
+                logger.debug(f">>>client doInit req sent, timestamp_apply={odd_ws_client.timestamp_apply}")
                 odd_ws_client.state = odd_asr_state.EM_ASR_STATE_APPLYING
                 continue
             case odd_asr_state.EM_ASR_STATE_APPLYING:
@@ -197,6 +210,8 @@ if __name__ == "__main__":
 
     print(f"Current working directory: {os.getcwd()}")
     print(f"Full file path: {os.path.abspath(file)}")
+    print(f"ASR server url: {server_url}, concurrency={concurrency}")
+    
 
     if not os.path.exists(file):
         print(f"File not found: {file}")

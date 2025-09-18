@@ -1,0 +1,141 @@
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+<!-- Theme style -->
+<link rel="stylesheet" href="dist/css/adminlte.min.css">
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1 class="m-0">Dialect model settings</h1>
+      </div><!-- /.col -->
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right" hidden="hidden">
+          <li class="breadcrumb-item"><a href="#">System settings</a></li>
+          <li class="breadcrumb-item active">Dialect model settings</li>
+        </ol>
+      </div><!-- /.col -->
+    </div><!-- /.row -->
+  </div><!-- /.container-fluid -->
+</div>
+<!-- /.content-header -->
+
+<!-- Main content -->
+<div class="content">
+  <div class="container-fluid">
+    <div class="card card-primary">
+      <div class="card-header">
+        <h3 class="card-title">Dialect model switch</h3>
+      </div>
+      <div class="card-body" style="font-size:80%">
+        <p hidden="hidden">
+          <b>Upload way: sftp</b>
+          <br />
+          <b>Upload address: sftp://oddasr:Odd_Asr@127.0.0.1:54321/opt/data/oddasr/dialect_models</b>
+          <br />
+          <a href="sftp/sftp.zip">Download sftp client</a>
+        </p>
+        <form>
+          <div class="col-sm-6">
+            <!-- select -->
+            <div class="form-group">
+              <label>Dialect models</label>
+              <select class="custom-select" id="current_model">
+                {% for i in model_list.list %}
+                  <option>{{i}}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <br />
+          <button type="button" class="btn btn-primary" onclick="change_model();">OK</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- /.content -->
+
+<div class="modal" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <img src="images/progress.gif" />
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<!-- AdminLTE App -->
+<script src="dist/js/adminlte.min.js"></script>
+
+<script>
+  var timer;
+
+  function hideModalDlg() {
+    $("#myModal").modal('hide');
+  }
+
+  function modalDlg(show) {
+    if (show == true) {
+      console.log("show modal dialog");
+      $("#myModal").modal({ backdrop: 'false', keyboard: false });
+    } else {
+      hideModalDlg();
+      //setTimeout(hideModalDlg , 3000);
+      console.log("hide modal dialog");
+    }
+  }
+
+  function change_model() {
+    current_model = $("#current_model").val();
+    if (current_model == "Henan")
+      name = "Henan";
+    else if (current_model == "Dongbei")
+      name = "Dongbei";
+    else if (current_model == "Mandarin")
+      name = "Mandarin";
+    else if (current_model == "Shandong")
+      name = "Shandong";
+
+    modalDlg(true)
+    $.ajaxSetup({ "xhrFields": true });
+    $.ajax({
+      url: "/asr/changemodel",
+      data: JSON.stringify({ "model_name": name }),
+      contentType: "application/json",
+      type: "Post",
+      traditional: true,
+      success: function (j) {
+        if (j['code'] == 1) {
+          modalDlg(false);
+          setTimeout("alert('Dialect model same, no need to switch')", 500);
+        } else if (j['code'] == -2) {
+          modalDlg(false);
+          setTimeout("alert('Transcription ongoing, cannot switch dialect model')", 500);
+        } else {
+          timer = setInterval(function () {
+          $.ajax({
+            url: "/asr/checklang",
+            traditional: true,
+            success: function (j) {
+              if (j['code'] == 0) {
+                modalDlg(false);
+                setTimeout("alert('Dialect model switch success')", 500);
+                clearInterval(timer);
+              } else if (j['code'] == 1) {
+                console.log('Dialect model switch in progress')
+              } else {
+                modalDlg(false);
+                setTimeout("alert('Dialect model switch failed')", 500);
+                clearInterval(timer);
+              }
+            }
+            });
+          }, 20000);
+        }
+      }
+    });
+  }
+</script>

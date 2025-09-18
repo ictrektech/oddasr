@@ -10,10 +10,15 @@
 
 import queue
 import asyncio
+from funasr import AutoModel
+import threading
+
 from log import logger
+import proto
 
 # 创建一个线程安全的优先级队列
 asr_result_queue = queue.SimpleQueue()
+asr_result_queue_lock = threading.Lock()
 
 class Result:
     def __init__(self):
@@ -47,17 +52,30 @@ def from_data(data):
 
 
 class OddAsrStreamResult:
-    def __init__(self, webocket, text, is_final=False, is_last=False):
+    # punc_model: AutoModel = None
+
+    def __init__(self, punc_model, webocket, text, index=0, begin_time=0, is_final=False, is_last=False):
+        self.punc_model = punc_model
         self.webocket = webocket
-        self.text = text
-        self.is_final = is_final
-        self.is_last = is_last
+        self.res = proto.TOddAsrTranscribeRes()
+        
+        if is_final:
+            self.res.header.name = "SentenceEnd"
+            # self.cached_text = ""
+        else:
+            self.res.header.name = "TranscriptionResultChanged"
+            # self.cached_text += text
+
+        self.res.payload.result = text
+        self.res.payload.begin_time = begin_time
+        self.res.payload.index = index
+        self.res.payload.fin = 1 if is_last else 0
 
 def enque_asr_result(message: OddAsrStreamResult):
     global asr_result_queue
     asr_result_queue.put(message)
     
-    logger.debug(f"asr result queue size={asr_result_queue.qsize()}")
+    logger.info(f"asr result queue size={asr_result_queue.qsize()}")
 
 async def notify_task(_wss_server=None):
     global asr_result_queue
@@ -66,14 +84,22 @@ async def notify_task(_wss_server=None):
         try:
             if not asr_result_queue.empty():
                 # print(f"queue size={asr_result_queue.qsize()}")
-                message = asr_result_queue.get()
+                message:OddAsrStreamResult = asr_result_queue.get()
                 # print(f"notifyTask: {message.text}")
+
+                # if message.punc_model:
+                #     message.res.payload.result = message.res.payload.result.replace(" ", "")
+                #     message.res.payload.fin = 1
+                # else:
+                #     message.res.payload.fin = 1
 
                 if _wss_server:
                     if message.webocket in _wss_server._clients_set:
                         # 发送消息给客户端
                         # print(f"notifyTask: send to client={message.webocket}")
-                        await _wss_server.doSend(message.webocket, message.text)
+                        str = proto.obj_to_dict_recursive(message.res)
+                        logger.debug(f"notifyTask: send to client={message.webocket}, res={str}")
+                        await _wss_server.doSend(message.webocket, str)
             else:
                 # print(f"notifyTask: queue empty")
                 # 队列为空，等待一段时间后再检查
