@@ -19,6 +19,9 @@ elif config.db_cfg["db_engine"] == "openGauss":
         'opengauss+psycopg2://' + config.db_cfg["db_user"] + ":" + config.db_cfg["db_password"] + "@"
         + config.db_cfg["db_host"] + ':' + config.db_cfg["db_port"] + "/" + config.db_cfg["db_name"],
         pool_recycle=3600, pool_pre_ping=True)
+else:
+    print("db_engine not support")
+    exit(1)
 
 Session = sessionmaker(bind=e)
 Base = declarative_base()
