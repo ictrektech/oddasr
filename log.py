@@ -18,6 +18,11 @@ def _logging():
     DATE = '%Y-%m-%d %H:%M:%S'
 
     format = logging.Formatter(FORMAT, DATE)
+
+    import os
+    if not os.path.exists(config.log_path):
+        os.makedirs(config.log_path)
+
     logfile = config.log_path + config.log_file
     
     log = logging.getLogger(logfile)

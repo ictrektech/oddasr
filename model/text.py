@@ -1,15 +1,15 @@
 from email.policy import default
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Text
 from model.db import Base
 
 class CText(Base):
-    __tablename__ = 'asrmanager_text'
+    __tablename__ = 'oddasr_text'
     
     text_id = Column(Integer, primary_key=True)     #
-    meeting_moid = Column(String(1024) , index=True)    
+    session_id = Column(Text , index=True)
     text_bg_time = Column(Integer)
     text_ed_time = Column(Integer)
-    text_content = Column(String(4096))        
+    text_content = Column(Text)        
     text_time = Column(Integer)
     text_term_e164 = Column(String(32))
     text_term_alias = Column(String(64))
