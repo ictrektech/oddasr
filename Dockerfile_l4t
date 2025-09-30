@@ -31,7 +31,9 @@ RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simpl
     pip install --no-cache-dir -r requirements_l4t.txt --index-url https://mirrors.cloud.tencent.com/pypi/simple && \
     --trusted-host mirrors.cloud.tencent.com \
     --timeout 120 --retries 5 \
-    --upgrade-strategy only-if-needed
+    --upgrade-strategy only-if-needed \
+    --ignore-installed blinker \
+    --break-system-packages
 
 # expose port
 EXPOSE 12340 12341
