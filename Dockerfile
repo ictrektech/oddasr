@@ -22,9 +22,7 @@ COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple
 
 # Copy only the necessary application files
-COPY *.py /app/
-COPY router/*.py /app/router/
-COPY *.wav /app/
+COPY . /app/
 
 
 # expose port
