@@ -26,7 +26,7 @@ COPY . /app/
 
 
 # expose port
-EXPOSE 12340 12341
+EXPOSE 12340 12341 8701 8101
 
 # set start command
 CMD ["python", "main_server.py"]

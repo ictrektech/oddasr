@@ -33,7 +33,7 @@ RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simpl
 COPY . /app/
 
 # expose port
-EXPOSE 12340 12341
+EXPOSE 12340 12341 8701 8101
 
 # set start command
 CMD ["python3", "main_server.py"]

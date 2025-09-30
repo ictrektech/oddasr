@@ -1,11 +1,11 @@
 ## Flask server binding IP & port
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 PORT = 12345
 PORT = 7501
 PORT = 8701
 
 ## WebSocket server binding IP & port
-WS_HOST = "127.0.0.1"
+WS_HOST = "0.0.0.0"
 WS_PORT = 8101
 
 ## working mode - Debug mode: True/False， Release mode: False/True
@@ -22,8 +22,8 @@ odd_asr_cfg = {
     "concurrent_thread": 0,
     ## asr stream config
     "asr_stream_cfg": {
-        'max_instance': 1, 
-        'punct_mini_len': 10, 
+        'max_instance': 1,
+        'punct_mini_len': 10,
         'save_audio': True ,
         'vad_threshold': 0.8,               # vad_threshold
         'vad_min_speech_duration': 300,     # vad_min_speech_duration(ms)
