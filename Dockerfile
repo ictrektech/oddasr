@@ -14,6 +14,12 @@ RUN apt-get update && apt-get install -y \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
+# install torch first
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# install requirements
+RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple
+
 # Copy only the necessary application files
 COPY *.py /app/
 COPY router/asr_api.py /app/router/asr_api.py
@@ -22,12 +28,6 @@ COPY requirements.txt /app/
 COPY router/__init__.py /app/router/__init__.py
 COPY *.wav /app/
 
-
-# install torch first
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-# install requirements
-RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple
 
 # expose port
 EXPOSE 12340 12341
