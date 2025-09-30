@@ -31,9 +31,7 @@ RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simpl
 
 # Copy only the necessary application files
 COPY *.py /app/
-COPY router/asr_api.py /app/router/asr_api.py
-COPY router/asr_front.py /app/router/asr_front.py
-COPY router/__init__.py /app/router/__init__.py
+COPY router/*.py /app/router/
 COPY *.wav /app/
 
 # expose port
