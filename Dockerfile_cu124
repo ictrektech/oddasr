@@ -1,6 +1,6 @@
 # Base image with PyTorch, CUDA 12.4, and cuDNN 9
-# FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
-FROM python:3.12-slim
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+# FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # install torch first
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url --index-url https://download.pytorch.org/whl/cu124
 
 # install requirements
 RUN pip install --no-cache-dir -r requirements.txt -i http://mirrors.cloud.tencent.com/pypi/simple
