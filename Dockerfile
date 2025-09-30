@@ -21,11 +21,6 @@ COPY router/asr_front.py /app/router/asr_front.py
 COPY requirements.txt /app/
 COPY *.wav /app/
 
-# update packages
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
 
 # install torch first
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
