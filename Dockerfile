@@ -26,7 +26,7 @@ COPY *.wav /app/
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # install requirements
-RUN pip install --no-cache-dir -r requirements.txt -i http://mirrors.cloud.tencent.com/pypi/simple
+RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple
 
 # expose port
 EXPOSE 12340 12341
