@@ -6,10 +6,10 @@ PORT = 8701
 
 ## WebSocket server binding IP & port
 WS_HOST = "0.0.0.0"
-WS_PORT = 8101
+WS_PORT = 8702
 
 ## working mode - Debug mode: True/False， Release mode: False/True
-Debug = False
+Debug = True
 
 odd_asr_cfg = {
     ## load model and allocate memory on startup
