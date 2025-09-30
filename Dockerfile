@@ -19,6 +19,7 @@ COPY *.py /app/
 COPY router/asr_api.py /app/router/asr_api.py
 COPY router/asr_front.py /app/router/asr_front.py
 COPY requirements.txt /app/
+COPY router/__init__.py /app/router/__init__.py
 COPY *.wav /app/
 
 
