@@ -40,4 +40,4 @@ COPY *.wav /app/
 EXPOSE 12340 12341
 
 # set start command
-CMD ["python", "main_server.py"]
+CMD ["python3", "main_server.py"]
