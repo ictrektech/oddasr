@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 
 # install torch first
 # RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
+COPY requirements_l4t.txt /app/
 # install requirements
 RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simple && \
     pip config set global.trusted-host mirrors.cloud.tencent.com && \
@@ -33,7 +33,6 @@ RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simpl
 COPY *.py /app/
 COPY router/asr_api.py /app/router/asr_api.py
 COPY router/asr_front.py /app/router/asr_front.py
-COPY requirements.txt /app/
 COPY router/__init__.py /app/router/__init__.py
 COPY *.wav /app/
 
